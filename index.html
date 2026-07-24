@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Plane Themed Bookmarks ✈</title>
+
+<link rel="icon" href="../images/favicon.png">
+
+<style>
+*{
+    box-sizing:border-box;
+    font-family:"Segoe UI",Arial,sans-serif;
+}
+
+body{
+    margin:0;
+    min-height:100vh;
+    background:
+    linear-gradient(
+        180deg,
+        #001b33,
+        #003d66,
+        #00111f
+    );
+    color:white;
+}
+
+/* Header */
+
+header{
+    padding:25px;
+    display:flex;
+    align-items:center;
+    gap:15px;
+    background:rgba(0,0,0,.25);
+    border-bottom:1px solid rgba(255,255,255,.15);
+}
+
+.logo{
+    width:65px;
+    height:65px;
+    border-radius:50%;
+    background:#008cff;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:32px;
+    box-shadow:0 0 25px #008cff;
+}
+
+header h1{
+    margin:0;
+    font-size:30px;
+}
+
+
+/* Main */
+
+.container{
+    max-width:900px;
+    margin:auto;
+    padding:35px;
+}
+
+
+.card{
+    background:rgba(255,255,255,.08);
+    backdrop-filter:blur(10px);
+    border-radius:22px;
+    padding:25px;
+    margin-bottom:25px;
+    border:1px solid rgba(255,255,255,.15);
+    box-shadow:0 0 25px rgba(0,140,255,.2);
+}
+
+
+h2{
+    margin-top:0;
+}
+
+
+/* Inputs */
+
+input{
+    width:100%;
+    padding:14px;
+    margin:8px 0;
+    border-radius:12px;
+    border:none;
+    outline:none;
+    font-size:16px;
+}
+
+
+button{
+    padding:13px 20px;
+    border-radius:15px;
+    border:none;
+    cursor:pointer;
+    font-size:16px;
+    background:#008cff;
+    color:white;
+    transition:.2s;
+}
+
+
+button:hover{
+    transform:scale(1.05);
+    box-shadow:0 0 20px #008cff;
+}
+
+
+
+/* Bookmark */
+
+.bookmark{
+    background:rgba(0,0,0,.3);
+    padding:20px;
+    border-radius:18px;
+    margin:15px 0;
+    border-left:5px solid #008cff;
+}
+
+
+.bookmark h3{
+    margin:0 0 8px;
+}
+
+
+.bookmark a{
+    color:#6fd3ff;
+    text-decoration:none;
+}
+
+
+.actions{
+    margin-top:15px;
+    display:flex;
+    gap:10px;
+}
+
+
+.delete{
+    background:#e63946;
+}
+
+
+.open{
+    background:#00b894;
+}
+
+
+
+/* Footer */
+
+footer{
+    text-align:center;
+    padding:30px;
+    opacity:.7;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<header>
+
+<div class="logo">
+✈
+</div>
+
+<h1>
+Plane Themed Bookmarks
+</h1>
+
+</header>
+
+
+
+<div class="container">
+
+
+<div class="card">
+
+<h2>
+🛫 Add Flight Bookmark
+</h2>
+
+<input id="name" placeholder="Website name">
+
+<input id="url" placeholder="Website URL">
+
+<button onclick="addBookmark()">
+✈ Add Bookmark
+</button>
+
+</div>
+
+
+
+
+<div class="card">
+
+<h2>
+📚 Saved Flights
+</h2>
+
+<div id="list">
+
+</div>
+
+</div>
+
+
+</div>
+
+
+
+<footer>
+
+✈ Plane Themed Bookmarks Terminal<br>
+planethemed.xyz/bookmarks
+
+</footer>
+
+
+
+
+<script>
+
+let bookmarks =
+JSON.parse(localStorage.getItem("planeBookmarks")) || [];
+
+
+function save(){
+
+localStorage.setItem(
+"planeBookmarks",
+JSON.stringify(bookmarks)
+);
+
+}
+
+
+
+function addBookmark(){
+
+let name=document.getElementById("name").value;
+let url=document.getElementById("url").value;
+
+
+if(!name || !url){
+alert("Please enter a website!");
+return;
+}
+
+
+if(!url.startsWith("http")){
+url="https://"+url;
+}
+
+
+bookmarks.push({
+name:name,
+url:url
+});
+
+
+save();
+
+document.getElementById("name").value="";
+document.getElementById("url").value="";
+
+display();
+
+}
+
+
+
+function removeBookmark(index){
+
+bookmarks.splice(index,1);
+
+save();
+
+display();
+
+}
+
+
+
+
+function display(){
+
+let list=document.getElementById("list");
+
+list.innerHTML="";
+
+
+if(bookmarks.length===0){
+
+list.innerHTML=
+"<p>No saved flights yet ✈</p>";
+
+return;
+
+}
+
+
+bookmarks.forEach((b,i)=>{
+
+
+list.innerHTML+=`
+
+<div class="bookmark">
+
+<h3>
+🛩 ${b.name}
+</h3>
+
+
+<a href="${b.url}" target="_blank">
+${b.url}
+</a>
+
+
+<div class="actions">
+
+<button class="open"
+onclick="window.open('${b.url}')">
+
+Open Flight
+
+</button>
+
+
+<button class="delete"
+onclick="removeBookmark(${i})">
+
+Remove
+
+</button>
+
+</div>
+
+
+</div>
+
+
+`;
+
+
+});
+
+
+}
+
+
+display();
+
+
+</script>
+
+
+</body>
+</html>

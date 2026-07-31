@@ -9,129 +9,45 @@
 <link rel="icon" href="../images/favicon.png">
 
 <style>
-*{
-    box-sizing:border-box;
-    font-family:"Segoe UI",Arial,sans-serif;
-}
-
-body{
-    margin:0;
-    min-height:100vh;
+.bookmark{
     background:
     linear-gradient(
-        180deg,
-        #001b33,
-        #003d66,
-        #00111f
+        135deg,
+        rgba(255,255,255,.25),
+        rgba(255,255,255,.08)
     );
-    color:white;
-}
-
-/* Header */
-
-header{
-    padding:25px;
-    display:flex;
-    align-items:center;
-    gap:15px;
-    background:rgba(0,0,0,.25);
-    border-bottom:1px solid rgba(255,255,255,.15);
-}
-
-.logo{
-    width:65px;
-    height:65px;
-    border-radius:50%;
-    background:#008cff;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    font-size:32px;
-    box-shadow:0 0 25px #008cff;
-}
-
-header h1{
-    margin:0;
-    font-size:30px;
-}
-
-
-/* Main */
-
-.container{
-    max-width:900px;
-    margin:auto;
-    padding:35px;
-}
-
-
-.card{
-    background:rgba(255,255,255,.08);
-    backdrop-filter:blur(10px);
-    border-radius:22px;
-    padding:25px;
-    margin-bottom:25px;
-    border:1px solid rgba(255,255,255,.15);
-    box-shadow:0 0 25px rgba(0,140,255,.2);
-}
-
-
-h2{
-    margin-top:0;
-}
-
-
-/* Inputs */
-
-input{
-    width:100%;
-    padding:14px;
-    margin:8px 0;
-    border-radius:12px;
-    border:none;
-    outline:none;
-    font-size:16px;
-}
-
-
-button{
-    padding:13px 20px;
-    border-radius:15px;
-    border:none;
-    cursor:pointer;
-    font-size:16px;
-    background:#008cff;
-    color:white;
-    transition:.2s;
-}
-
-
-button:hover{
-    transform:scale(1.05);
-    box-shadow:0 0 20px #008cff;
-}
-
-
-
-/* Bookmark */
-
-.bookmark{
-    background:rgba(0,0,0,.3);
     padding:20px;
-    border-radius:18px;
-    margin:15px 0;
-    border-left:5px solid #008cff;
+    border-radius:25px;
+    margin:18px 0;
+    border:3px solid rgba(255,255,255,.25);
+    box-shadow:
+        0 10px 25px rgba(0,0,0,.35),
+        inset 0 0 20px rgba(255,255,255,.15);
+    position:relative;
+    overflow:hidden;
+}
+
+
+.bookmark::before{
+    content:"✈";
+    position:absolute;
+    right:15px;
+    top:10px;
+    font-size:45px;
+    opacity:.15;
 }
 
 
 .bookmark h3{
-    margin:0 0 8px;
+    margin:0 0 10px;
+    font-size:22px;
+    color:#fff;
 }
 
 
 .bookmark a{
-    color:#6fd3ff;
-    text-decoration:none;
+    color:#8ee7ff;
+    word-break:break-all;
 }
 
 
@@ -142,25 +58,10 @@ button:hover{
 }
 
 
-.delete{
-    background:#e63946;
+.edit{
+    background:#ffb703;
+    color:#222;
 }
-
-
-.open{
-    background:#00b894;
-}
-
-
-
-/* Footer */
-
-footer{
-    text-align:center;
-    padding:30px;
-    opacity:.7;
-}
-
 </style>
 
 </head>

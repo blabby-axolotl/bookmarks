@@ -289,26 +289,32 @@
       -webkit-user-select: none;
       min-height: 120px;
       position: relative;
-      overflow: hidden;
+      overflow: visible;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
     }
 
-    .bookmark::before {
-      content: attr(data-plane);
-      font-size: 3.5rem;
-      line-height: 1;
-      opacity: 0.8;
+    .plane-icon {
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 4px;
       transition: transform 0.3s;
     }
 
-    .bookmark:hover {
-      background: var(--surface);
-      border-color: var(--secondary);
-      transform: translateY(-4px);
-      box-shadow: 0 8px 24px rgba(96, 165, 250, 0.2);
+    .bookmark:hover .plane-icon {
+      transform: scale(1.15) rotate(-5deg);
     }
 
-    .bookmark:hover::before {
-      transform: scale(1.1) rotate(-5deg);
+    .plane-icon svg {
+      width: 100%;
+      height: 100%;
+      fill: var(--accent-primary);
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
     }
 
     .bm-label {
@@ -321,6 +327,13 @@
       text-overflow: ellipsis;
       white-space: nowrap;
       transition: color 0.2s;
+    }
+
+    .bookmark:hover {
+      background: var(--surface);
+      border-color: var(--secondary);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(96, 165, 250, 0.2);
     }
 
     .bookmark:hover .bm-label {
@@ -873,6 +886,52 @@
   </div>
 
   <script>
+    // SVG Plane Icons
+    const PLANE_ICONS = {
+      f111: `<svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 50 5 L 30 25 L 25 20 L 50 10 L 75 20 L 70 25 Z" fill="currentColor"/>
+        <rect x="48" y="25" width="4" height="25" fill="currentColor"/>
+        <path d="M 50 50 L 35 55 L 40 50 Z" fill="currentColor"/>
+        <path d="M 50 50 L 65 55 L 60 50 Z" fill="currentColor"/>
+      </svg>`,
+      
+      concorde: `<svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 50 8 L 20 35 L 30 40 L 45 30 L 50 50 L 55 30 L 70 40 L 80 35 Z" fill="currentColor"/>
+        <path d="M 48 50 L 50 55 L 52 50 Z" fill="currentColor"/>
+      </svg>`,
+      
+      '747': `<svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="50" cy="28" rx="20" ry="12" fill="currentColor" opacity="0.8"/>
+        <path d="M 30 28 L 20 25 L 20 31 Z" fill="currentColor"/>
+        <path d="M 70 28 L 80 25 L 80 31 Z" fill="currentColor"/>
+        <rect x="45" y="40" width="10" height="12" fill="currentColor"/>
+        <circle cx="35" cy="52" r="3" fill="currentColor"/>
+        <circle cx="50" cy="52" r="3" fill="currentColor"/>
+        <circle cx="65" cy="52" r="3" fill="currentColor"/>
+      </svg>`,
+      
+      a340: `<svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="50" cy="26" rx="22" ry="11" fill="currentColor" opacity="0.8"/>
+        <path d="M 28 26 L 18 22 L 18 30 Z" fill="currentColor"/>
+        <path d="M 72 26 L 82 22 L 82 30 Z" fill="currentColor"/>
+        <rect x="44" y="37" width="12" height="13" fill="currentColor"/>
+        <circle cx="30" cy="50" r="2.5" fill="currentColor"/>
+        <circle cx="42" cy="50" r="2.5" fill="currentColor"/>
+        <circle cx="58" cy="50" r="2.5" fill="currentColor"/>
+        <circle cx="70" cy="50" r="2.5" fill="currentColor"/>
+      </svg>`,
+      
+      '777': `<svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="50" cy="27" rx="18" ry="10" fill="currentColor" opacity="0.8"/>
+        <path d="M 32 27 L 22 24 L 22 30 Z" fill="currentColor"/>
+        <path d="M 68 27 L 78 24 L 78 30 Z" fill="currentColor"/>
+        <rect x="46" y="37" width="8" height="12" fill="currentColor"/>
+        <circle cx="35" cy="49" r="3" fill="currentColor"/>
+        <circle cx="50" cy="49" r="3" fill="currentColor"/>
+        <circle cx="65" cy="49" r="3" fill="currentColor"/>
+      </svg>`
+    };
+
     const utils = {
       lsGet: (key) => { try { return localStorage.getItem(key); } catch(e) { return null; } },
       lsSet: (key, val) => { try { localStorage.setItem(key, val); } catch(e) { console.error('LS write fail:', e); } },
@@ -1071,14 +1130,18 @@
         filtered.forEach((bm, visIndex) => {
           const actualIndex = appState.bookmarks.indexOf(bm);
           const el = document.createElement('a');
-          el.className = `bookmark plane-${bm.plane || 'concorde'}${appState.isEditMode ? ' edit-mode' : ''}`;
+          el.className = `bookmark${appState.isEditMode ? ' edit-mode' : ''}`;
           el.href = appState.isEditMode ? 'javascript:void(0)' : utils.normalizeUrl(bm.url);
           el.target = appState.isEditMode ? '' : '_blank';
           el.rel = 'noopener noreferrer';
-          let html = `<div class="bm-label">${escapeHtml(bm.name)}</div>`;
+          
+          const planeIcon = PLANE_ICONS[bm.plane] || PLANE_ICONS.concorde;
+          let html = `<div class="plane-icon">${planeIcon}</div><div class="bm-label">${escapeHtml(bm.name)}</div>`;
+          
           if (appState.isEditMode) {
             html += `<button class="tile-action tile-edit" data-index="${actualIndex}" title="Edit">✏️</button><button class="tile-action tile-delete" data-index="${actualIndex}" title="Delete">✕</button>`;
           }
+          
           el.innerHTML = html;
           el.addEventListener('click', (e) => { if (appState.isEditMode) e.preventDefault(); });
           DOM.bmGrid.appendChild(el);

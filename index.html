@@ -3,1204 +3,1337 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Skyline Bookmarks - Aircraft Edition</title>
+  <title>Skyline Bookmarks – Aircraft Edition</title>
+  <!--
+    PROTOTYPE NOTICE: Authentication uses localStorage only.
+    Passwords are stored with btoa() encoding — NOT cryptographic hashing.
+    This prototype must NOT be deployed with real user credentials.
+    Replace auth.register / auth.login with a real backend before production use.
+  -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    /* ── CSS Variables for Theming ── */
+    /* ── CSS Variables ── */
     :root {
       --primary-light: #60a5fa;
-      --primary-dark: #3b82f6;
-      --secondary: #93c5fd;
-      --bg-light: #e0f2fe;
-      --bg-dark: #0c1929;
+      --primary-dark:  #3b82f6;
+      --secondary:     #93c5fd;
+      --bg-light:      #e0f2fe;
+      --bg-dark:       #0c1929;
       --surface-light: #ffffff;
-      --surface-dark: #1a3a52;
-      --surface-lighter: #f0f9ff;
-      --surface-darker: #0f2844;
-      --text-light: #1e293b;
-      --text-dark: #e0f2fe;
-      --muted-light: #64748b;
-      --muted-dark: #7dd3fc;
-      --border-light: rgba(0, 0, 0, 0.1);
-      --border-dark: rgba(255, 255, 255, 0.1);
-      --accent: #06b6d4;
-      --f: 'Outfit', sans-serif;
-      
-      /* Active theme variables */
-      --bg: var(--bg-dark);
-      --surface: var(--surface-dark);
-      --text: var(--text-dark);
-      --muted: var(--muted-dark);
-      --border: var(--border-dark);
-      --accent-primary: var(--primary-light);
+      --surface-dark:  #1a3a52;
+      --surface-lighter:#f0f9ff;
+      --surface-darker:#0f2844;
+      --text-light:    #1e293b;
+      --text-dark:     #e0f2fe;
+      --muted-light:   #64748b;
+      --muted-dark:    #7dd3fc;
+      --border-light:  rgba(0,0,0,.1);
+      --border-dark:   rgba(255,255,255,.1);
+      --accent:        #06b6d4;
+      --f:             'Outfit', sans-serif;
+      /* Active theme defaults (dark) */
+      --bg:            var(--bg-dark);
+      --surface:       var(--surface-dark);
+      --text:          var(--text-dark);
+      --muted:         var(--muted-dark);
+      --border:        var(--border-dark);
+      --accent-primary:var(--primary-light);
+      --surface-input: var(--surface-darker);
     }
-
-    /* Light theme */
     :root[data-theme="light"] {
-      --bg: var(--bg-light);
-      --surface: var(--surface-light);
-      --text: var(--text-light);
-      --muted: var(--muted-light);
-      --border: var(--border-light);
-      --accent-primary: var(--primary-dark);
+      --bg:            var(--bg-light);
+      --surface:       var(--surface-light);
+      --text:          var(--text-light);
+      --muted:         var(--muted-light);
+      --border:        var(--border-light);
+      --accent-primary:var(--primary-dark);
+      --surface-input: var(--surface-lighter);
     }
 
-    *, *::before, *::after { 
-      box-sizing: border-box; 
-      margin: 0; 
-      padding: 0; 
-    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    html, body {
+    html {
       height: 100%;
       font-family: var(--f);
       background: var(--bg);
       color: var(--text);
-      transition: background 0.3s, color 0.3s;
+      transition: background .3s, color .3s;
     }
-
     body {
-      display: grid;
-      grid-template-rows: auto 1fr;
-      overflow: hidden;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
     }
 
-    /* ── Authentication State ── */
+    /* ── Auth state ── */
     body:not(.authenticated) > header,
-    body:not(.authenticated) > main {
-      display: none;
-    }
-
-    body.authenticated #auth-overlay {
-      display: none;
-    }
+    body:not(.authenticated) > main,
+    body:not(.authenticated) > #sidebar { display: none; }
+    body.authenticated #auth-overlay     { display: none; }
 
     /* ── Header ── */
     header {
-      position: relative;
+      position: sticky;
+      top: 0;
       z-index: 20;
-      display: grid;
-      grid-template-columns: 1fr auto;
+      display: flex;
       align-items: center;
-      padding: 0 24px;
+      justify-content: space-between;
+      padding: 0 20px;
       border-bottom: 1px solid var(--border);
-      background: rgba(12, 25, 41, 0.95);
+      background: rgba(12,25,41,.95);
       backdrop-filter: blur(12px);
-      height: 60px;
+      height: 56px;
+      flex-shrink: 0;
     }
-
-    :root[data-theme="light"] header {
-      background: rgba(255, 255, 255, 0.95);
-    }
+    :root[data-theme="light"] header { background: rgba(255,255,255,.95); }
 
     .logo {
       font-weight: 700;
-      font-size: 1.3rem;
+      font-size: 1.2rem;
       background: linear-gradient(135deg, var(--primary-light), var(--accent));
       -webkit-background-clip: text;
       background-clip: text;
       color: transparent;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
+    .logo-icon { width: 28px; height: 28px; flex-shrink: 0; fill: var(--accent); }
 
-    .logo::before {
-      content: "✈️";
-      font-size: 1.4rem;
-    }
-
-    .header-right {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      justify-content: flex-end;
-    }
+    .header-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
     .icon-btn {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 8px;
       color: var(--muted);
-      padding: 8px 12px;
+      padding: 7px 11px;
       cursor: pointer;
       font-family: var(--f);
-      font-size: 0.85rem;
+      font-size: .82rem;
       font-weight: 500;
-      transition: all 0.2s;
+      transition: all .2s;
     }
-
-    .icon-btn:hover {
-      color: var(--text);
+    .icon-btn:hover, .icon-btn:focus-visible {
+      color: var(--bg);
       border-color: var(--accent-primary);
       background: var(--accent-primary);
-      color: var(--bg);
+      outline: none;
     }
+    .icon-btn.active { background: var(--accent-primary); color: var(--bg); border-color: var(--accent-primary); }
 
-    .icon-btn.active {
-      background: var(--accent-primary);
-      color: var(--bg);
-    }
-
-    /* ── Main Content ── */
+    /* ── Main ── */
     main {
-      position: relative;
-      z-index: 1;
-      display: grid;
-      grid-template-columns: 1fr;
-      grid-template-rows: 1fr;
-      gap: 16px;
-      padding: 20px;
-      height: calc(100vh - 60px);
-      overflow: hidden;
-    }
-
-    .container {
+      flex: 1;
+      padding: 16px 20px;
       display: flex;
       flex-direction: column;
       gap: 16px;
-      height: 100%;
-      overflow: hidden;
+      transition: margin-left .3s;
     }
+    body.sidebar-open main { margin-left: 320px; }
 
-    /* ── Card Base ── */
+    /* ── Card ── */
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 20px;
-      overflow: hidden;
+      padding: 18px;
       display: flex;
       flex-direction: column;
-      animation: slideIn 0.4s ease;
+      animation: slideIn .35s ease;
     }
-
-    @keyframes slideIn {
-      from {
-        opacity: 0;
-        transform: translateY(10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
+    @keyframes slideIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
     .card-title {
-      font-size: 0.9rem;
+      font-size: .82rem;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 1.5px;
       color: var(--muted);
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
 
-    /* ── Search Card ── */
-    #search-card {
-      flex-shrink: 0;
-    }
-
-    .search-wrap {
-      position: relative;
-      margin-bottom: 12px;
-    }
-
-    .search-ico {
-      position: absolute;
-      left: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      font-size: 1rem;
-      pointer-events: none;
-    }
-
+    /* Search */
+    .search-wrap { position: relative; }
+    .search-ico { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); pointer-events: none; font-size: .95rem; }
     #search-input {
       width: 100%;
-      background: var(--surface-darker);
+      background: var(--surface-input);
       border: 1px solid var(--border);
       border-radius: 8px;
       color: var(--text);
       font-family: var(--f);
-      font-size: 0.95rem;
-      padding: 12px 12px 12px 40px;
+      font-size: .9rem;
+      padding: 11px 11px 11px 36px;
       outline: none;
-      transition: all 0.2s;
+      transition: all .2s;
     }
-
-    #search-input:focus {
-      border-color: var(--accent-primary);
-      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
-    }
-
-    #search-input::placeholder {
-      color: var(--muted);
-    }
+    #search-input:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(96,165,250,.15); }
+    #search-input::placeholder { color: var(--muted); }
 
     /* ── Bookmarks Grid ── */
-    #bookmarks-card {
-      flex: 1;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-
+    #bookmarks-card { flex: 1; }
     .bm-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
       gap: 12px;
-      flex: 1;
-      overflow-y: auto;
-      overflow-x: hidden;
-      padding-right: 4px;
       align-content: start;
     }
+    .bm-grid::-webkit-scrollbar { width: 5px; }
+    .bm-grid::-webkit-scrollbar-thumb { background: var(--accent-primary); border-radius: 3px; }
 
-    .bm-grid::-webkit-scrollbar {
-      width: 6px;
-    }
-
-    .bm-grid::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
-    .bm-grid::-webkit-scrollbar-thumb {
-      background: var(--accent-primary);
-      border-radius: 3px;
-    }
-
-    /* ── Plane Bookmark Shapes ── */
+    /* ── Plane Bookmark tile ── */
     .bookmark {
       position: relative;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 16px 12px;
-      border-radius: 8px;
+      justify-content: flex-end;
+      gap: 6px;
+      padding: 12px 10px 10px;
+      border-radius: 10px;
       text-decoration: none;
       color: var(--text);
-      background: var(--surface-darker);
+      background: var(--surface-input);
       border: 2px solid var(--accent-primary);
-      transition: all 0.2s;
+      transition: all .2s;
       cursor: pointer;
       user-select: none;
-      -webkit-user-select: none;
       min-height: 120px;
-      position: relative;
-      overflow: hidden;
     }
-
-    .bookmark::before {
-      content: attr(data-plane);
-      font-size: 3.5rem;
-      line-height: 1;
-      opacity: 0.8;
-      transition: transform 0.3s;
-    }
-
-    .bookmark:hover {
+    .bookmark:hover, .bookmark:focus-visible {
       background: var(--surface);
       border-color: var(--secondary);
       transform: translateY(-4px);
-      box-shadow: 0 8px 24px rgba(96, 165, 250, 0.2);
+      box-shadow: 0 8px 24px rgba(96,165,250,.2);
+      outline: none;
     }
-
-    .bookmark:hover::before {
-      transform: scale(1.1) rotate(-5deg);
+    .bookmark:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
+    .bm-plane-img {
+      width: 60px;
+      height: 60px;
+      object-fit: contain;
+      flex-shrink: 0;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,.4));
+      transition: transform .3s;
     }
-
+    .bookmark:hover .bm-plane-img { transform: scale(1.12) rotate(-5deg); }
     .bm-label {
-      font-size: 0.75rem;
+      font-size: .72rem;
       font-weight: 600;
       text-align: center;
       color: var(--muted);
-      max-width: 90px;
+      max-width: 96px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      transition: color 0.2s;
+      transition: color .2s;
     }
+    .bookmark:hover .bm-label { color: var(--accent-primary); }
 
-    .bookmark:hover .bm-label {
-      color: var(--accent-primary);
-    }
-
-    .bookmark.edit-mode {
-      animation: pulse 0.6s ease-in-out infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.7; }
-    }
+    .bookmark.edit-mode { animation: pulse .6s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.7; } }
 
     .tile-action {
       position: absolute;
       top: 4px;
-      width: 24px;
-      height: 24px;
+      width: 22px;
+      height: 22px;
       border-radius: 50%;
-      background: var(--accent-primary);
       border: 2px solid var(--bg);
-      color: var(--bg);
-      font-size: 11px;
+      color: #fff;
+      font-size: 10px;
       display: none;
       align-items: center;
       justify-content: center;
       cursor: pointer;
       padding: 0;
-      transition: all 0.15s;
+      transition: transform .15s;
     }
-
     .tile-delete { right: 4px; background: #ef4444; }
-    .tile-edit { right: 32px; background: #3b82f6; }
-
-    .bookmark.edit-mode .tile-action {
-      display: flex;
-      pointer-events: auto;
-    }
-
-    .tile-action:hover {
-      transform: scale(1.15);
-    }
+    .tile-edit   { right: 30px; background: #3b82f6; }
+    .bookmark.edit-mode .tile-action { display: flex; pointer-events: auto; }
+    .tile-action:hover { transform: scale(1.2); }
+    .tile-action:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
 
     .add-tile {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      padding: 16px 12px;
-      border-radius: 8px;
+      gap: 6px;
+      padding: 12px;
+      border-radius: 10px;
       background: transparent;
       border: 2px dashed var(--accent-primary);
       color: var(--accent-primary);
-      font-size: 0.75rem;
+      font-size: .72rem;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all .2s;
       font-family: var(--f);
-      user-select: none;
       min-height: 120px;
     }
-
-    .add-tile:hover {
-      background: rgba(96, 165, 250, 0.05);
+    .add-tile:hover, .add-tile:focus-visible {
+      background: rgba(96,165,250,.07);
       border-color: var(--secondary);
+      outline: none;
+    }
+    .add-tile::before { content: "+"; font-size: 1.8rem; line-height: 1; }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      position: fixed;
+      top: 0;
+      left: -320px;
+      width: 320px;
+      height: 100%;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      transition: left .3s;
+      overflow: hidden;
+    }
+    #sidebar.open { left: 0; }
+
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(12,25,41,.8);
+      flex-shrink: 0;
+    }
+    :root[data-theme="light"] .sidebar-header { background: rgba(240,249,255,.9); }
+    .sidebar-title {
+      font-weight: 700;
+      font-size: 1rem;
+      background: linear-gradient(135deg, var(--primary-light), var(--accent));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .sidebar-close {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      width: 28px; height: 28px;
+      cursor: pointer;
+      font-size: 1rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .2s;
+    }
+    .sidebar-close:hover, .sidebar-close:focus-visible {
+      color: var(--text); border-color: var(--accent-primary); outline: none;
     }
 
-    .add-tile::before {
-      content: "+";
-      font-size: 2rem;
-      line-height: 1;
+    .sidebar-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
     }
+
+    .sidebar-section-title {
+      font-size: .78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.4px;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .sidebar-search-form { display: flex; gap: 8px; }
+    #sidebar-search-input {
+      flex: 1;
+      background: var(--surface-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--f);
+      font-size: .88rem;
+      padding: 10px 11px;
+      outline: none;
+      transition: all .2s;
+    }
+    #sidebar-search-input:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(96,165,250,.15); }
+    #sidebar-search-input::placeholder { color: var(--muted); }
+    #sidebar-search-btn {
+      background: linear-gradient(135deg, var(--primary-light), var(--accent));
+      border: none;
+      border-radius: 8px;
+      color: var(--bg);
+      font-family: var(--f);
+      font-size: .82rem;
+      font-weight: 600;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+    #sidebar-search-btn:hover, #sidebar-search-btn:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(96,165,250,.3);
+      outline: none;
+    }
+
+    /* History section */
+    .history-toggle-btn {
+      background: var(--surface-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--f);
+      font-size: .82rem;
+      font-weight: 500;
+      padding: 9px 13px;
+      cursor: pointer;
+      width: 100%;
+      text-align: left;
+      transition: all .2s;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .history-toggle-btn:hover, .history-toggle-btn:focus-visible {
+      border-color: var(--accent-primary); outline: none;
+    }
+    .history-toggle-btn .chevron { transition: transform .2s; }
+    .history-toggle-btn.open .chevron { transform: rotate(180deg); }
+
+    #history-panel { display: none; }
+    #history-panel.open { display: block; }
+
+    .history-controls {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 8px;
+    }
+    .clear-history-btn {
+      background: transparent;
+      border: 1px solid #ef4444;
+      border-radius: 6px;
+      color: #ef4444;
+      font-family: var(--f);
+      font-size: .75rem;
+      padding: 5px 10px;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .clear-history-btn:hover, .clear-history-btn:focus-visible {
+      background: #ef4444; color: #fff; outline: none;
+    }
+
+    .history-list { display: flex; flex-direction: column; gap: 6px; }
+    .history-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface-input);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 8px 10px;
+      cursor: pointer;
+      transition: all .2s;
+      text-align: left;
+      width: 100%;
+      font-family: var(--f);
+      color: var(--text);
+      font-size: .82rem;
+    }
+    .history-item:hover, .history-item:focus-visible {
+      border-color: var(--accent-primary); background: var(--surface); outline: none;
+    }
+    .history-item-icon { flex-shrink: 0; font-size: .8rem; color: var(--muted); }
+    .history-item-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .history-empty { color: var(--muted); font-size: .8rem; font-style: italic; padding: 4px 0; }
+
+    /* sidebar overlay for mobile */
+    #sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 49;
+    }
+    #sidebar-overlay.open { display: block; }
 
     /* ── Modals ── */
     .overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(0,0,0,.6);
       backdrop-filter: blur(8px);
       z-index: 300;
       display: none;
       align-items: center;
       justify-content: center;
+      padding: 16px;
     }
-
-    .overlay.open {
-      display: flex;
-    }
-
+    .overlay.open { display: flex; }
     .modal {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 28px;
+      padding: 26px;
       width: 380px;
-      max-width: 90vw;
+      max-width: 100%;
       max-height: 90vh;
       overflow-y: auto;
-      animation: modalSlide 0.3s ease;
+      animation: modalSlide .25s ease;
     }
-
-    @keyframes modalSlide {
-      from {
-        opacity: 0;
-        transform: scale(0.95) translateY(-20px);
-      }
-      to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-      }
-    }
-
-    .modal-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 20px;
-    }
-
+    @keyframes modalSlide { from { opacity:0; transform:scale(.95) translateY(-16px); } to { opacity:1; transform:none; } }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
     .modal-title {
-      font-size: 1.2rem;
-      font-weight: 700;
+      font-size: 1.15rem; font-weight: 700;
       background: linear-gradient(135deg, var(--primary-light), var(--accent));
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
+      -webkit-background-clip: text; background-clip: text; color: transparent;
     }
-
     .modal-close {
-      background: var(--surface-darker);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--muted);
-      width: 28px;
-      height: 28px;
-      cursor: pointer;
-      font-size: 1rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s;
-      padding: 0;
-      font-family: var(--f);
-      font-weight: 500;
+      background: var(--surface-input); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--muted); width: 28px; height: 28px; cursor: pointer;
+      font-size: 1rem; display: flex; align-items: center; justify-content: center;
+      transition: all .2s; padding: 0; font-family: var(--f); font-weight: 500;
     }
-
-    .modal-close:hover {
-      color: var(--text);
-      border-color: var(--accent-primary);
-    }
+    .modal-close:hover, .modal-close:focus-visible { color: var(--text); border-color: var(--accent-primary); outline: none; }
 
     .form-field {
       width: 100%;
-      background: var(--surface-darker);
+      background: var(--surface-input);
       border: 1px solid var(--border);
       border-radius: 8px;
       color: var(--text);
       font-family: var(--f);
-      font-size: 0.9rem;
-      padding: 12px;
-      margin-bottom: 12px;
+      font-size: .88rem;
+      padding: 11px;
+      margin-bottom: 11px;
       outline: none;
-      transition: all 0.2s;
+      transition: all .2s;
     }
+    .form-field:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(96,165,250,.1); }
+    .form-field::placeholder { color: var(--muted); }
+    select.form-field { cursor: pointer; }
 
-    .form-field:focus {
-      border-color: var(--accent-primary);
-      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
-    }
-
-    .form-field::placeholder {
-      color: var(--muted);
-    }
-
-    .form-error {
-      color: #ef4444;
-      font-size: 0.8rem;
-      margin-bottom: 12px;
-      text-align: center;
-    }
-
-    .form-success {
-      color: #10b981;
-      font-size: 0.8rem;
-      margin-bottom: 12px;
-      text-align: center;
-    }
+    .form-error   { color: #ef4444; font-size: .78rem; margin-bottom: 10px; text-align: center; }
+    .form-success { color: #10b981; font-size: .78rem; margin-bottom: 10px; text-align: center; }
 
     .btn {
-      width: 100%;
-      padding: 12px;
-      border: none;
-      border-radius: 8px;
+      width: 100%; padding: 11px; border: none; border-radius: 8px;
       background: linear-gradient(135deg, var(--primary-light), var(--accent));
-      color: var(--bg);
-      font-family: var(--f);
-      font-size: 0.9rem;
-      font-weight: 600;
-      cursor: pointer;
-      margin-bottom: 8px;
-      transition: all 0.2s;
+      color: var(--bg); font-family: var(--f); font-size: .88rem; font-weight: 600;
+      cursor: pointer; margin-bottom: 8px; transition: all .2s;
     }
+    .btn:hover, .btn:focus-visible { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(96,165,250,.3); outline: none; }
+    .btn:active { transform: none; }
+    .btn-secondary { background: var(--surface-input); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover, .btn-secondary:focus-visible { background: var(--surface); border-color: var(--accent-primary); }
+    .btn-danger { background: #ef4444; color: #fff; }
+    .btn-danger:hover, .btn-danger:focus-visible { background: #dc2626; }
 
-    .btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 16px rgba(96, 165, 250, 0.3);
-    }
-
-    .btn:active {
-      transform: translateY(0);
-    }
-
-    .btn-secondary {
-      background: var(--surface-darker);
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
-
-    .btn-secondary:hover {
-      background: var(--surface);
-      border-color: var(--accent-primary);
-    }
-
-    .btn-danger {
-      background: #ef4444;
-      color: white;
-    }
-
-    .btn-danger:hover {
-      background: #dc2626;
-    }
-
-    /* ── Settings Panel ── */
+    /* Settings */
     .settings-group {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 12px;
-      padding: 12px;
-      background: var(--surface-darker);
-      border-radius: 8px;
-      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      margin-bottom: 11px; padding: 11px;
+      background: var(--surface-input); border-radius: 8px; border: 1px solid var(--border);
     }
-
-    .settings-label {
-      font-size: 0.9rem;
-      font-weight: 500;
-    }
-
-    .settings-control {
-      display: flex;
-      gap: 8px;
-    }
-
+    .settings-label { font-size: .88rem; font-weight: 500; }
+    .settings-control { display: flex; gap: 8px; }
     .theme-toggle {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      border: 2px solid var(--accent-primary);
-      cursor: pointer;
-      transition: all 0.2s;
-      background: var(--surface);
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 2px solid var(--accent-primary); cursor: pointer;
+      transition: all .2s; background: var(--surface);
     }
+    .theme-toggle.active { background: var(--accent-primary); }
+    .theme-toggle:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
 
-    .theme-toggle.active {
-      background: var(--accent-primary);
-    }
-
-    select.form-field {
-      cursor: pointer;
-    }
-
-    /* ── Auth Overlay ── */
+    /* Auth overlay */
     #auth-overlay {
       background: linear-gradient(135deg, var(--bg-dark), var(--surface-dark));
-      backdrop-filter: none;
-      animation: none;
-    }
-
-    .auth-modal {
-      width: 420px;
-      max-width: 90vw;
-    }
-
-    .auth-header {
-      text-align: center;
-      margin-bottom: 24px;
-    }
-
-    .auth-header h1 {
-      font-size: 2rem;
-      background: linear-gradient(135deg, var(--primary-light), var(--accent));
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-      margin-bottom: 8px;
-      display: flex;
+      backdrop-filter: none; animation: none;
       align-items: center;
       justify-content: center;
-      gap: 8px;
     }
-
-    .auth-header h1::before {
-      content: "✈️";
-      font-size: 2.2rem;
+    .auth-modal { width: 420px; max-width: 100%; }
+    .auth-header { text-align: center; margin-bottom: 22px; }
+    .auth-header h1 {
+      font-size: 1.8rem;
+      background: linear-gradient(135deg, var(--primary-light), var(--accent));
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      margin-bottom: 6px; display: flex; align-items: center; justify-content: center; gap: 8px;
     }
-
-    .auth-header p {
-      color: var(--muted);
-      font-size: 0.9rem;
-    }
-
-    .auth-tabs {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 20px;
-      border-bottom: 1px solid var(--border);
-    }
-
+    .auth-logo-icon { width: 32px; height: 32px; fill: var(--accent); flex-shrink: 0; }
+    .auth-header p { color: var(--muted); font-size: .88rem; }
+    .auth-tabs { display: flex; gap: 8px; margin-bottom: 18px; border-bottom: 1px solid var(--border); }
     .auth-tab {
-      flex: 1;
-      padding: 12px;
-      background: transparent;
-      border: none;
-      border-bottom: 2px solid transparent;
-      color: var(--muted);
-      font-family: var(--f);
-      font-size: 0.9rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
+      flex: 1; padding: 11px; background: transparent; border: none;
+      border-bottom: 2px solid transparent; color: var(--muted);
+      font-family: var(--f); font-size: .88rem; font-weight: 600; cursor: pointer; transition: all .2s;
     }
+    .auth-tab.active { color: var(--accent-primary); border-bottom-color: var(--accent-primary); }
+    .auth-tab:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: -2px; }
+    .auth-content { display: none; }
+    .auth-content.active { display: block; }
+    .auth-footer { text-align: center; margin-top: 14px; font-size: .82rem; color: var(--muted); }
+    .auth-footer button { background: none; border: none; color: var(--accent-primary); cursor: pointer; font-weight: 600; font-family: var(--f); }
+    .auth-footer button:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
 
-    .auth-tab.active {
-      color: var(--accent-primary);
-      border-bottom-color: var(--accent-primary);
-    }
+    .credit { text-align: center; font-size: .68rem; color: var(--muted); margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+    .credit a { color: var(--accent-primary); text-decoration: none; }
+    .credit a:hover { text-decoration: underline; }
 
-    .auth-content {
-      display: none;
-    }
-
-    .auth-content.active {
-      display: block;
-    }
-
-    .auth-footer {
-      text-align: center;
-      margin-top: 16px;
-      font-size: 0.85rem;
-      color: var(--muted);
-    }
-
-    .auth-footer button {
-      background: none;
-      border: none;
-      color: var(--accent-primary);
-      cursor: pointer;
-      font-weight: 600;
-      font-family: var(--f);
-    }
-
-    .credit {
-      text-align: center;
-      font-size: 0.7rem;
-      color: var(--muted);
-      margin-top: 20px;
-      padding-top: 16px;
-      border-top: 1px solid var(--border);
-    }
-
-    .credit a {
-      color: var(--accent-primary);
-      text-decoration: none;
-    }
-
-    .credit a:hover {
-      text-decoration: underline;
-    }
-
-    /* ── Utility Classes ── */
-    .hidden {
-      display: none !important;
-    }
+    .hidden { display: none !important; }
 
     /* ── Responsive ── */
-    @media (max-width: 768px) {
-      main {
-        padding: 12px;
-        gap: 12px;
-      }
-
-      .card {
-        padding: 16px;
-      }
-
-      .bm-grid {
-        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-      }
-
-      header {
-        padding: 0 16px;
-        height: 50px;
-      }
-
-      .logo {
-        font-size: 1.1rem;
-      }
-
-      .modal, .auth-modal {
-        width: 95vw;
-      }
+    @media (max-width: 640px) {
+      main { padding: 10px 12px; gap: 12px; }
+      .card { padding: 14px; }
+      .bm-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
+      header { padding: 0 12px; height: 50px; }
+      .logo { font-size: 1rem; }
+      body.sidebar-open main { margin-left: 0; }
+      #sidebar { width: 290px; }
+    }
+    @media (max-width: 380px) {
+      .header-right { gap: 5px; }
+      .icon-btn { padding: 6px 8px; font-size: .75rem; }
     }
   </style>
 </head>
-<body data-theme="dark">
+<body>
 
-  <!-- ── Authentication Overlay ── -->
-  <div class="overlay open" id="auth-overlay">
+  <!-- ── Auth Overlay ── -->
+  <div class="overlay open" id="auth-overlay" role="dialog" aria-modal="true" aria-labelledby="auth-heading">
     <div class="modal auth-modal">
       <div class="auth-header">
-        <h1>Skyline Bookmarks</h1>
+        <h1 id="auth-heading">
+          <svg class="auth-logo-icon" viewBox="0 0 100 100" aria-hidden="true"><ellipse cx="50" cy="50" rx="6.5" ry="43"/><polygon points="50,44 4,66 50,61 96,66"/><ellipse cx="27" cy="60" rx="6" ry="2.5"/><ellipse cx="73" cy="60" rx="6" ry="2.5"/><polygon points="50,87 27,97 50,93 73,97"/></svg>
+          Skyline Bookmarks
+        </h1>
         <p>Your personal flight deck</p>
       </div>
 
-      <div class="auth-tabs">
-        <button class="auth-tab active" data-tab="login">Login</button>
-        <button class="auth-tab" data-tab="register">Register</button>
+      <div class="auth-tabs" role="tablist">
+        <button class="auth-tab active" role="tab" aria-selected="true" data-tab="login" id="tab-login" aria-controls="login-content">Login</button>
+        <button class="auth-tab" role="tab" aria-selected="false" data-tab="register" id="tab-register" aria-controls="register-content">Register</button>
       </div>
 
-      <!-- Login Form -->
-      <div class="auth-content active" id="login-content">
-        <input class="form-field" id="login-username" type="text" placeholder="Username" autocomplete="username">
-        <input class="form-field" id="login-password" type="password" placeholder="Password" autocomplete="current-password">
-        <div id="login-error" class="form-error hidden"></div>
+      <div class="auth-content active" id="login-content" role="tabpanel" aria-labelledby="tab-login">
+        <input class="form-field" id="login-username" type="text" placeholder="Username" autocomplete="username" aria-label="Username">
+        <input class="form-field" id="login-password" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password">
+        <div id="login-error" class="form-error hidden" role="alert"></div>
         <button class="btn" id="login-btn">Login</button>
-        <p class="auth-footer">
-          <span>Don't have an account? </span>
-          <button id="switch-to-register">Register here</button>
-        </p>
+        <p class="auth-footer">Don't have an account? <button id="switch-to-register">Register here</button></p>
       </div>
 
-      <!-- Register Form -->
-      <div class="auth-content" id="register-content">
-        <input class="form-field" id="register-username" type="text" placeholder="Username" autocomplete="username">
-        <input class="form-field" id="register-password" type="password" placeholder="Password" autocomplete="new-password">
-        <input class="form-field" id="register-confirm" type="password" placeholder="Confirm Password" autocomplete="new-password">
-        <div id="register-error" class="form-error hidden"></div>
-        <div id="register-success" class="form-success hidden"></div>
+      <div class="auth-content" id="register-content" role="tabpanel" aria-labelledby="tab-register">
+        <input class="form-field" id="register-username" type="text" placeholder="Username (min 3 chars)" autocomplete="username" aria-label="Username">
+        <input class="form-field" id="register-password" type="password" placeholder="Password (min 6 chars)" autocomplete="new-password" aria-label="Password">
+        <input class="form-field" id="register-confirm" type="password" placeholder="Confirm Password" autocomplete="new-password" aria-label="Confirm Password">
+        <div id="register-error"   class="form-error hidden"   role="alert"></div>
+        <div id="register-success" class="form-success hidden" role="status"></div>
         <button class="btn" id="register-btn">Create Account</button>
-        <p class="auth-footer">
-          <span>Already have an account? </span>
-          <button id="switch-to-login">Login here</button>
-        </p>
+        <p class="auth-footer">Already have an account? <button id="switch-to-login">Login here</button></p>
       </div>
 
       <div class="credit">
-        Design inspired by <a href="https://github.com/TyCoInnovations/portal" target="_blank">TyCo Bookmarks</a>
+        Design inspired by <a href="https://github.com/TyCoInnovations" target="_blank" rel="noopener noreferrer">TyCo Bookmarks / TyCo Innovations</a>
       </div>
     </div>
   </div>
 
-  <!-- ── Main Header ── -->
+  <!-- ── Sidebar overlay (mobile) ── -->
+  <div id="sidebar-overlay" aria-hidden="true"></div>
+
+  <!-- ── Sidebar ── -->
+  <aside id="sidebar" aria-label="Search sidebar" aria-hidden="true">
+    <div class="sidebar-header">
+      <span class="sidebar-title">🔎 Google Search</span>
+      <button class="sidebar-close" id="sidebar-close" aria-label="Close sidebar">✕</button>
+    </div>
+    <div class="sidebar-body">
+      <!-- Google Search -->
+      <section aria-labelledby="gsearch-label">
+        <div class="sidebar-section-title" id="gsearch-label">Search Google</div>
+        <form class="sidebar-search-form" id="sidebar-search-form" novalidate>
+          <input
+            id="sidebar-search-input"
+            type="search"
+            placeholder="Search Google…"
+            autocomplete="off"
+            aria-label="Google search query"
+          >
+          <button type="submit" id="sidebar-search-btn" aria-label="Search">Go</button>
+        </form>
+      </section>
+
+      <!-- History -->
+      <section aria-labelledby="history-label">
+        <button class="history-toggle-btn" id="history-toggle-btn" aria-expanded="false" aria-controls="history-panel">
+          <span id="history-label">Search History</span>
+          <span class="chevron" aria-hidden="true">▼</span>
+        </button>
+        <div id="history-panel" role="region" aria-labelledby="history-label">
+          <div style="height:8px"></div>
+          <div class="history-controls">
+            <button class="clear-history-btn" id="clear-history-btn" aria-label="Clear search history">Clear all</button>
+          </div>
+          <div class="history-list" id="history-list" aria-live="polite"></div>
+        </div>
+      </section>
+    </div>
+  </aside>
+
+  <!-- ── Header ── -->
   <header>
-    <div class="logo">Skyline Bookmarks</div>
+    <div class="logo" aria-label="Skyline Bookmarks">
+      <svg class="logo-icon" viewBox="0 0 100 100" aria-hidden="true"><ellipse cx="50" cy="50" rx="6.5" ry="43"/><polygon points="50,44 4,66 50,61 96,66"/><ellipse cx="27" cy="60" rx="6" ry="2.5"/><ellipse cx="73" cy="60" rx="6" ry="2.5"/><polygon points="50,87 27,97 50,93 73,97"/></svg>
+      Skyline Bookmarks
+    </div>
     <div class="header-right">
+      <button class="icon-btn" id="open-sidebar" aria-label="Open Google search sidebar" aria-expanded="false" aria-controls="sidebar">🔎 Search</button>
       <button class="icon-btn" id="toggle-edit">Edit</button>
-      <button class="icon-btn" id="toggle-theme">🌙</button>
-      <button class="icon-btn" id="open-settings">⚙️</button>
+      <button class="icon-btn" id="toggle-theme" aria-label="Toggle light/dark theme">☀️</button>
+      <button class="icon-btn" id="open-settings" aria-label="Settings">⚙️</button>
       <button class="icon-btn" id="logout-btn">Logout</button>
     </div>
   </header>
 
-  <!-- ── Main Content ── -->
-  <main>
-    <div class="container">
-      <!-- Search Card -->
-      <div class="card" id="search-card">
-        <div class="card-title">Quick Navigate</div>
-        <div class="search-wrap">
-          <span class="search-ico">🔍</span>
-          <input id="search-input" type="text" placeholder="Search bookmarks..." autocomplete="off">
-        </div>
+  <!-- ── Main ── -->
+  <main id="main-content">
+    <!-- Bookmark filter -->
+    <div class="card" id="search-card">
+      <div class="card-title">Quick Navigate</div>
+      <div class="search-wrap">
+        <span class="search-ico" aria-hidden="true">🔍</span>
+        <input id="search-input" type="search" placeholder="Filter bookmarks…" autocomplete="off" aria-label="Filter bookmarks">
       </div>
+    </div>
 
-      <!-- Bookmarks Card -->
-      <div class="card" id="bookmarks-card">
-        <div class="card-title">Your Flight Path</div>
-        <div class="bm-grid" id="bm-grid">
-          <!-- Populated by JS -->
-        </div>
-      </div>
+    <!-- Bookmarks -->
+    <div class="card" id="bookmarks-card">
+      <div class="card-title">Your Flight Path</div>
+      <div class="bm-grid" id="bm-grid" role="list" aria-label="Bookmarks"></div>
     </div>
   </main>
 
   <!-- ── Add/Edit Bookmark Modal ── -->
-  <div class="overlay" id="bookmark-overlay">
+  <div class="overlay" id="bookmark-overlay" role="dialog" aria-modal="true" aria-labelledby="bookmark-modal-title">
     <div class="modal">
       <div class="modal-header">
         <div class="modal-title" id="bookmark-modal-title">Add Bookmark</div>
-        <button class="modal-close" id="bookmark-close">✕</button>
+        <button class="modal-close" id="bookmark-close" aria-label="Close">✕</button>
       </div>
-      <input class="form-field" id="bookmark-name" type="text" placeholder="Bookmark Name" maxlength="40">
-      <input class="form-field" id="bookmark-url" type="url" placeholder="URL (e.g., https://github.com)">
-      <select class="form-field" id="bookmark-plane">
-        <option value="f111">F-111 (Small/Fast)</option>
-        <option value="concorde">Concorde (Sleek)</option>
-        <option value="747">Boeing 747 (Large)</option>
-        <option value="a340">Airbus A340 (Cargo)</option>
-        <option value="777">Boeing 777 (Wide-body)</option>
+      <input class="form-field" id="bookmark-name" type="text" placeholder="Bookmark Name" maxlength="40" aria-label="Bookmark name">
+      <input class="form-field" id="bookmark-url"  type="url"  placeholder="URL (e.g. https://github.com)" aria-label="Bookmark URL">
+      <select class="form-field" id="bookmark-plane" aria-label="Aircraft model">
+        <option value="f111">F-111 Aardvark (swept wing)</option>
+        <option value="concorde">Concorde (delta wing)</option>
+        <option value="747">Boeing 747 (4-engine hump)</option>
+        <option value="a340">Airbus A340 (4-engine long)</option>
+        <option value="777">Boeing 777 (twin wide-body)</option>
       </select>
-      <div id="bookmark-error" class="form-error hidden"></div>
+      <div id="bookmark-error" class="form-error hidden" role="alert"></div>
       <button class="btn" id="bookmark-save">Save Bookmark</button>
       <button class="btn btn-secondary" id="bookmark-cancel">Cancel</button>
     </div>
   </div>
 
   <!-- ── Settings Modal ── -->
-  <div class="overlay" id="settings-overlay">
+  <div class="overlay" id="settings-overlay" role="dialog" aria-modal="true" aria-labelledby="settings-heading">
     <div class="modal">
       <div class="modal-header">
-        <div class="modal-title">Settings</div>
-        <button class="modal-close" id="settings-close">✕</button>
+        <div class="modal-title" id="settings-heading">Settings</div>
+        <button class="modal-close" id="settings-close" aria-label="Close settings">✕</button>
       </div>
 
       <div class="settings-group">
         <span class="settings-label">Theme</span>
-        <div class="settings-control">
-          <button class="theme-toggle" id="theme-dark" data-theme="dark" title="Dark Mode"></button>
-          <button class="theme-toggle" id="theme-light" data-theme="light" title="Light Mode"></button>
+        <div class="settings-control" role="group" aria-label="Theme selection">
+          <button class="theme-toggle" id="theme-dark"  data-theme="dark"  title="Dark mode"  aria-label="Dark mode" aria-pressed="false"></button>
+          <button class="theme-toggle" id="theme-light" data-theme="light" title="Light mode" aria-label="Light mode" aria-pressed="false"></button>
         </div>
       </div>
 
       <div class="settings-group">
-        <span class="settings-label">Display Name</span>
-        <input class="form-field" id="settings-name" type="text" placeholder="Your name" maxlength="40" style="width: auto; flex: 1;">
+        <label class="settings-label" for="settings-name">Display Name</label>
+        <input class="form-field" id="settings-name" type="text" placeholder="Your name" maxlength="40" style="width:auto;flex:1;margin-bottom:0;">
       </div>
 
+      <div style="height:12px"></div>
       <button class="btn" id="save-settings">Save Settings</button>
-      <button class="btn btn-danger" id="clear-all-data">Clear All Data</button>
+      <button class="btn btn-danger" id="clear-all-data">Clear All My Data</button>
 
-      <div class="credit" style="margin-top: 24px;">
-        Design inspired by <a href="https://github.com/TyCoInnovations/portal" target="_blank">TyCo Bookmarks</a>
+      <div class="credit" style="margin-top:20px;">
+        Design inspired by <a href="https://github.com/TyCoInnovations" target="_blank" rel="noopener noreferrer">TyCo Bookmarks / TyCo Innovations</a>
       </div>
     </div>
   </div>
 
   <script>
+    /*
+     * ════════════════════════════════════════════════════════
+     * PROTOTYPE / LOCAL-ONLY BUILD
+     * Authentication uses localStorage exclusively.
+     * Passwords are encoded with btoa() — NOT cryptographically
+     * hashed. Do NOT use real credentials with this prototype.
+     * Replace auth.register / auth.login with a proper backend
+     * (hashed passwords, server-side sessions) before deployment.
+     * ════════════════════════════════════════════════════════
+     */
+
+    /* ── Utilities ── */
     const utils = {
-      lsGet: (key) => { try { return localStorage.getItem(key); } catch(e) { return null; } },
-      lsSet: (key, val) => { try { localStorage.setItem(key, val); } catch(e) { console.error('LS write fail:', e); } },
-      lsRemove: (key) => { try { localStorage.removeItem(key); } catch(e) {} },
+      lsGet:    (k) => { try { return localStorage.getItem(k); }           catch(e) { return null; } },
+      lsSet:    (k,v)=>{ try { localStorage.setItem(k,v); }               catch(e) { console.error('LS write:', e); } },
+      lsRemove: (k) => { try { localStorage.removeItem(k); }              catch(e) {} },
       normalizeUrl: (url) => {
         url = (url || '').trim();
         if (!url) return '';
         if (/^https?:\/\//i.test(url)) return url;
         return 'https://' + url;
+      },
+      escapeHtml: (text) => {
+        const d = document.createElement('div');
+        d.textContent = text;
+        return d.innerHTML;
       }
     };
 
-    const STORAGE_KEYS = { USER: 'skyline_user', BOOKMARKS: 'skyline_bookmarks', SETTINGS: 'skyline_settings', AUTH_TOKEN: 'skyline_auth_token' };
+    const SK = {
+      USER:     'skyline_user',
+      SETTINGS: 'skyline_settings',
+      AUTH_TOK: 'skyline_auth_token',
+      G_HIST:   'skyline_gsearch_history'
+    };
+
+    /* ── Plane image mapping ── */
+    const PLANE_IMGS = {
+      f111:     'images/f111.svg',
+      concorde: 'images/concorde.svg',
+      '747':    'images/747.svg',
+      a340:     'images/a340.svg',
+      '777':    'images/777.svg'
+    };
+    const PLANE_LABELS = {
+      f111:     'F-111',
+      concorde: 'Concorde',
+      '747':    'Boeing 747',
+      a340:     'Airbus A340',
+      '777':    'Boeing 777'
+    };
+    const DEFAULT_PLANE = 'concorde';
 
     const DEFAULT_BOOKMARKS = [
-      { name: 'GitHub', url: 'https://github.com', plane: 'concorde' },
-      { name: 'Google', url: 'https://google.com', plane: 'f111' },
-      { name: 'YouTube', url: 'https://youtube.com', plane: '747' },
-      { name: 'ChatGPT', url: 'https://chat.openai.com', plane: 'a340' },
-      { name: 'Reddit', url: 'https://reddit.com', plane: '777' }
+      { name:'GitHub',   url:'https://github.com',          plane:'concorde' },
+      { name:'Google',   url:'https://google.com',          plane:'f111'     },
+      { name:'YouTube',  url:'https://youtube.com',         plane:'747'      },
+      { name:'ChatGPT',  url:'https://chat.openai.com',     plane:'a340'     },
+      { name:'Reddit',   url:'https://reddit.com',          plane:'777'      }
     ];
 
-    let appState = {
+    let state = {
       currentUser: null,
-      bookmarks: [],
-      settings: { theme: 'dark', displayName: 'Pilot' },
-      editingIndex: -1,
-      isEditMode: false,
-      authToken: null
+      bookmarks:   [],
+      settings:    { theme:'dark', displayName:'Pilot' },
+      editingIndex:-1,
+      isEditMode:  false,
+      sidebarOpen: false
     };
 
+    /* ── DOM refs ── */
+    const $ = (id) => document.getElementById(id);
     const DOM = {
-      body: document.documentElement,
-      authOverlay: document.getElementById('auth-overlay'),
-      authTabs: document.querySelectorAll('.auth-tab'),
-      authContents: document.querySelectorAll('.auth-content'),
-      loginUsername: document.getElementById('login-username'),
-      loginPassword: document.getElementById('login-password'),
-      loginError: document.getElementById('login-error'),
-      loginBtn: document.getElementById('login-btn'),
-      registerUsername: document.getElementById('register-username'),
-      registerPassword: document.getElementById('register-password'),
-      registerConfirm: document.getElementById('register-confirm'),
-      registerError: document.getElementById('register-error'),
-      registerSuccess: document.getElementById('register-success'),
-      registerBtn: document.getElementById('register-btn'),
-      switchToRegister: document.getElementById('switch-to-register'),
-      switchToLogin: document.getElementById('switch-to-login'),
-      toggleEdit: document.getElementById('toggle-edit'),
-      toggleTheme: document.getElementById('toggle-theme'),
-      openSettings: document.getElementById('open-settings'),
-      logoutBtn: document.getElementById('logout-btn'),
-      searchInput: document.getElementById('search-input'),
-      bmGrid: document.getElementById('bm-grid'),
-      bookmarkOverlay: document.getElementById('bookmark-overlay'),
-      bookmarkClose: document.getElementById('bookmark-close'),
-      bookmarkModalTitle: document.getElementById('bookmark-modal-title'),
-      bookmarkName: document.getElementById('bookmark-name'),
-      bookmarkUrl: document.getElementById('bookmark-url'),
-      bookmarkPlane: document.getElementById('bookmark-plane'),
-      bookmarkError: document.getElementById('bookmark-error'),
-      bookmarkSave: document.getElementById('bookmark-save'),
-      bookmarkCancel: document.getElementById('bookmark-cancel'),
-      settingsOverlay: document.getElementById('settings-overlay'),
-      settingsClose: document.getElementById('settings-close'),
-      settingsName: document.getElementById('settings-name'),
-      themeDark: document.getElementById('theme-dark'),
-      themeLight: document.getElementById('theme-light'),
-      saveSettings: document.getElementById('save-settings'),
-      clearAllData: document.getElementById('clear-all-data')
+      root:             document.documentElement,
+      body:             document.body,
+      authOverlay:      $('auth-overlay'),
+      loginUsername:    $('login-username'),
+      loginPassword:    $('login-password'),
+      loginError:       $('login-error'),
+      loginBtn:         $('login-btn'),
+      registerUsername: $('register-username'),
+      registerPassword: $('register-password'),
+      registerConfirm:  $('register-confirm'),
+      registerError:    $('register-error'),
+      registerSuccess:  $('register-success'),
+      registerBtn:      $('register-btn'),
+      switchToRegister: $('switch-to-register'),
+      switchToLogin:    $('switch-to-login'),
+      toggleEdit:       $('toggle-edit'),
+      toggleTheme:      $('toggle-theme'),
+      openSettings:     $('open-settings'),
+      logoutBtn:        $('logout-btn'),
+      searchInput:      $('search-input'),
+      bmGrid:           $('bm-grid'),
+      bookmarkOverlay:  $('bookmark-overlay'),
+      bookmarkClose:    $('bookmark-close'),
+      bookmarkTitle:    $('bookmark-modal-title'),
+      bookmarkName:     $('bookmark-name'),
+      bookmarkUrl:      $('bookmark-url'),
+      bookmarkPlane:    $('bookmark-plane'),
+      bookmarkError:    $('bookmark-error'),
+      bookmarkSave:     $('bookmark-save'),
+      bookmarkCancel:   $('bookmark-cancel'),
+      settingsOverlay:  $('settings-overlay'),
+      settingsClose:    $('settings-close'),
+      settingsName:     $('settings-name'),
+      themeDark:        $('theme-dark'),
+      themeLight:       $('theme-light'),
+      saveSettings:     $('save-settings'),
+      clearAllData:     $('clear-all-data'),
+      sidebar:          $('sidebar'),
+      sidebarOverlay:   $('sidebar-overlay'),
+      sidebarClose:     $('sidebar-close'),
+      openSidebar:      $('open-sidebar'),
+      sidebarForm:      $('sidebar-search-form'),
+      sidebarInput:     $('sidebar-search-input'),
+      historyToggle:    $('history-toggle-btn'),
+      historyPanel:     $('history-panel'),
+      historyList:      $('history-list'),
+      clearHistory:     $('clear-history-btn')
     };
 
+    /* ── Auth (PROTOTYPE – localStorage only) ── */
     const auth = {
       register: async (username, password) => {
         if (!username || username.length < 3) throw new Error('Username must be at least 3 characters');
         if (!password || password.length < 6) throw new Error('Password must be at least 6 characters');
-        const existing = utils.lsGet(`${STORAGE_KEYS.USER}_${username}`);
-        if (existing) throw new Error('Username already exists');
-        const userData = { username, password: btoa(password), createdAt: new Date().toISOString(), bookmarks: [...DEFAULT_BOOKMARKS] };
-        utils.lsSet(`${STORAGE_KEYS.USER}_${username}`, JSON.stringify(userData));
+        if (utils.lsGet(`${SK.USER}_${username}`)) throw new Error('Username already exists');
+        const userData = {
+          username,
+          // NOTE: btoa is NOT secure hashing — prototype only
+          password: btoa(password),
+          createdAt: new Date().toISOString(),
+          bookmarks: JSON.parse(JSON.stringify(DEFAULT_BOOKMARKS))
+        };
+        utils.lsSet(`${SK.USER}_${username}`, JSON.stringify(userData));
         return userData;
       },
       login: async (username, password) => {
-        const userData = utils.lsGet(`${STORAGE_KEYS.USER}_${username}`);
-        if (!userData) throw new Error('Username not found');
-        const user = JSON.parse(userData);
+        const raw = utils.lsGet(`${SK.USER}_${username}`);
+        if (!raw) throw new Error('Username not found');
+        const user = JSON.parse(raw);
         if (user.password !== btoa(password)) throw new Error('Invalid password');
-        const token = btoa(`${username}:${Date.now()}`);
-        utils.lsSet(STORAGE_KEYS.AUTH_TOKEN, token);
+        utils.lsSet(SK.AUTH_TOK, btoa(`${username}:${Date.now()}`));
         return user;
       },
       logout: () => {
-        utils.lsRemove(STORAGE_KEYS.AUTH_TOKEN);
-        appState.currentUser = null;
-        appState.authToken = null;
-        appState.bookmarks = [];
-        ui.showAuthOverlay();
+        utils.lsRemove(SK.AUTH_TOK);
+        state.currentUser = null;
+        state.bookmarks   = [];
+        state.isEditMode  = false;
+        sidebar.close();
+        ui.showAuth();
       },
-      getCurrentUser: () => {
-        const token = utils.lsGet(STORAGE_KEYS.AUTH_TOKEN);
-        if (!token) return null;
+      getSession: () => {
+        const tok = utils.lsGet(SK.AUTH_TOK);
+        if (!tok) return null;
         try {
-          const decoded = atob(token).split(':');
-          const username = decoded[0];
-          const userData = utils.lsGet(`${STORAGE_KEYS.USER}_${username}`);
-          return userData ? JSON.parse(userData) : null;
+          const username = atob(tok).split(':')[0];
+          const raw = utils.lsGet(`${SK.USER}_${username}`);
+          return raw ? JSON.parse(raw) : null;
         } catch(e) { return null; }
       }
     };
 
-    const bookmarks = {
+    /* ── Bookmarks ── */
+    const bm = {
       load: () => {
-        if (!appState.currentUser) return;
-        const saved = utils.lsGet(`${STORAGE_KEYS.USER}_${appState.currentUser.username}`);
-        if (saved) {
-          const user = JSON.parse(saved);
-          appState.bookmarks = user.bookmarks || [...DEFAULT_BOOKMARKS];
-        }
+        if (!state.currentUser) return;
+        const raw = utils.lsGet(`${SK.USER}_${state.currentUser.username}`);
+        state.bookmarks = raw ? (JSON.parse(raw).bookmarks || [...DEFAULT_BOOKMARKS]) : [...DEFAULT_BOOKMARKS];
       },
       save: () => {
-        if (!appState.currentUser) return;
-        const userData = JSON.parse(utils.lsGet(`${STORAGE_KEYS.USER}_${appState.currentUser.username}`));
-        userData.bookmarks = appState.bookmarks;
-        utils.lsSet(`${STORAGE_KEYS.USER}_${appState.currentUser.username}`, JSON.stringify(userData));
+        if (!state.currentUser) return;
+        const raw = utils.lsGet(`${SK.USER}_${state.currentUser.username}`);
+        if (!raw) return;
+        const user = JSON.parse(raw);
+        user.bookmarks = state.bookmarks;
+        utils.lsSet(`${SK.USER}_${state.currentUser.username}`, JSON.stringify(user));
       },
       add: (name, url, plane) => {
         url = utils.normalizeUrl(url);
         if (!name || !url) throw new Error('Name and URL are required');
-        appState.bookmarks.push({ name, url, plane });
-        bookmarks.save();
-        ui.render();
+        state.bookmarks.push({ name, url, plane: plane || DEFAULT_PLANE });
+        bm.save(); ui.render();
       },
-      update: (index, name, url, plane) => {
-        if (index < 0 || index >= appState.bookmarks.length) throw new Error('Invalid bookmark');
+      update: (idx, name, url, plane) => {
+        if (idx < 0 || idx >= state.bookmarks.length) throw new Error('Invalid index');
         url = utils.normalizeUrl(url);
-        appState.bookmarks[index] = { name, url, plane };
-        bookmarks.save();
-        ui.render();
+        state.bookmarks[idx] = { name, url, plane: plane || DEFAULT_PLANE };
+        bm.save(); ui.render();
       },
-      delete: (index) => {
-        if (index < 0 || index >= appState.bookmarks.length) throw new Error('Invalid bookmark');
-        appState.bookmarks.splice(index, 1);
-        bookmarks.save();
-        ui.render();
+      delete: (idx) => {
+        if (idx < 0 || idx >= state.bookmarks.length) throw new Error('Invalid index');
+        state.bookmarks.splice(idx, 1);
+        bm.save(); ui.render();
       },
-      search: (query) => {
-        if (!query) return appState.bookmarks;
-        const q = query.toLowerCase();
-        return appState.bookmarks.filter(b => b.name.toLowerCase().includes(q) || b.url.toLowerCase().includes(q));
+      filter: (q) => {
+        if (!q) return state.bookmarks;
+        const lq = q.toLowerCase();
+        return state.bookmarks.filter(b => b.name.toLowerCase().includes(lq) || b.url.toLowerCase().includes(lq));
       }
     };
 
-    const settings = {
+    /* ── Settings ── */
+    const cfg = {
       load: () => {
-        const saved = utils.lsGet(STORAGE_KEYS.SETTINGS);
-        if (saved) appState.settings = JSON.parse(saved);
+        const raw = utils.lsGet(SK.SETTINGS);
+        if (raw) try { state.settings = JSON.parse(raw); } catch(e) {}
       },
-      save: () => { utils.lsSet(STORAGE_KEYS.SETTINGS, JSON.stringify(appState.settings)); },
+      save: () => utils.lsSet(SK.SETTINGS, JSON.stringify(state.settings)),
       applyTheme: (theme) => {
-        appState.settings.theme = theme;
-        DOM.body.setAttribute('data-theme', theme);
+        state.settings.theme = theme;
+        DOM.root.setAttribute('data-theme', theme);
         DOM.toggleTheme.textContent = theme === 'dark' ? '☀️' : '🌙';
-        updateThemeButtons();
-        settings.save();
+        DOM.toggleTheme.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+        DOM.themeDark.classList.toggle('active', theme === 'dark');
+        DOM.themeLight.classList.toggle('active', theme === 'light');
+        DOM.themeDark.setAttribute('aria-pressed', String(theme === 'dark'));
+        DOM.themeLight.setAttribute('aria-pressed', String(theme === 'light'));
+        cfg.save();
       }
     };
 
-    const ui = {
-      showAuthOverlay: () => { document.body.classList.remove('authenticated'); DOM.authOverlay.classList.add('open'); },
-      hideAuthOverlay: () => { document.body.classList.add('authenticated'); DOM.authOverlay.classList.remove('open'); },
-      showBookmarkModal: (index = -1) => {
-        appState.editingIndex = index;
-        if (index >= 0) {
-          const bm = appState.bookmarks[index];
-          DOM.bookmarkModalTitle.textContent = 'Edit Bookmark';
-          DOM.bookmarkName.value = bm.name;
-          DOM.bookmarkUrl.value = bm.url;
-          DOM.bookmarkPlane.value = bm.plane || 'concorde';
-        } else {
-          DOM.bookmarkModalTitle.textContent = 'Add Bookmark';
-          DOM.bookmarkName.value = '';
-          DOM.bookmarkUrl.value = '';
-          DOM.bookmarkPlane.value = 'concorde';
+    /* ── Google Search History ── */
+    const hist = {
+      get: () => { try { return JSON.parse(utils.lsGet(SK.G_HIST) || '[]'); } catch(e) { return []; } },
+      add: (q) => {
+        const list = hist.get().filter(h => h !== q);
+        list.unshift(q);
+        utils.lsSet(SK.G_HIST, JSON.stringify(list.slice(0, 50)));
+        hist.renderList();
+      },
+      clear: () => { utils.lsRemove(SK.G_HIST); hist.renderList(); },
+      search: (q) => {
+        q = q.trim();
+        if (!q) return;
+        hist.add(q);
+        window.open('https://www.google.com/search?q=' + encodeURIComponent(q), '_blank', 'noopener,noreferrer');
+      },
+      renderList: () => {
+        const list = hist.get();
+        DOM.historyList.innerHTML = '';
+        if (!list.length) {
+          DOM.historyList.innerHTML = '<div class="history-empty">No history yet</div>';
+          return;
         }
-        clearBookmarkError();
+        list.forEach(q => {
+          const btn = document.createElement('button');
+          btn.className = 'history-item';
+          btn.setAttribute('type', 'button');
+          btn.setAttribute('aria-label', 'Repeat search: ' + q);
+          btn.innerHTML = `<span class="history-item-icon" aria-hidden="true">🕐</span><span class="history-item-text">${utils.escapeHtml(q)}</span>`;
+          btn.addEventListener('click', () => hist.search(q));
+          DOM.historyList.appendChild(btn);
+        });
+      }
+    };
+
+    /* ── Sidebar ── */
+    const sidebar = {
+      open: () => {
+        state.sidebarOpen = true;
+        DOM.sidebar.classList.add('open');
+        DOM.sidebar.setAttribute('aria-hidden','false');
+        DOM.sidebarOverlay.classList.add('open');
+        DOM.sidebarOverlay.setAttribute('aria-hidden','false');
+        DOM.openSidebar.setAttribute('aria-expanded','true');
+        DOM.openSidebar.classList.add('active');
+        document.body.classList.add('sidebar-open');
+        hist.renderList();
+        setTimeout(() => DOM.sidebarInput.focus(), 50);
+      },
+      close: () => {
+        state.sidebarOpen = false;
+        DOM.sidebar.classList.remove('open');
+        DOM.sidebar.setAttribute('aria-hidden','true');
+        DOM.sidebarOverlay.classList.remove('open');
+        DOM.sidebarOverlay.setAttribute('aria-hidden','true');
+        DOM.openSidebar.setAttribute('aria-expanded','false');
+        DOM.openSidebar.classList.remove('active');
+        document.body.classList.remove('sidebar-open');
+      },
+      toggle: () => state.sidebarOpen ? sidebar.close() : sidebar.open()
+    };
+
+    /* ── UI ── */
+    const ui = {
+      showAuth: () => {
+        DOM.body.classList.remove('authenticated');
+        DOM.authOverlay.classList.add('open');
+        DOM.loginUsername.focus();
+      },
+      hideAuth: () => {
+        DOM.body.classList.add('authenticated');
+        DOM.authOverlay.classList.remove('open');
+      },
+      showBookmarkModal: (idx = -1) => {
+        state.editingIndex = idx;
+        if (idx >= 0) {
+          const b = state.bookmarks[idx];
+          DOM.bookmarkTitle.textContent = 'Edit Bookmark';
+          DOM.bookmarkName.value  = b.name;
+          DOM.bookmarkUrl.value   = b.url;
+          DOM.bookmarkPlane.value = b.plane || DEFAULT_PLANE;
+        } else {
+          DOM.bookmarkTitle.textContent = 'Add Bookmark';
+          DOM.bookmarkName.value  = '';
+          DOM.bookmarkUrl.value   = '';
+          DOM.bookmarkPlane.value = DEFAULT_PLANE;
+        }
+        DOM.bookmarkError.classList.add('hidden');
         DOM.bookmarkOverlay.classList.add('open');
         DOM.bookmarkName.focus();
       },
-      hideBookmarkModal: () => { DOM.bookmarkOverlay.classList.remove('open'); },
-      showSettingsModal: () => { DOM.settingsName.value = appState.settings.displayName || ''; updateThemeButtons(); DOM.settingsOverlay.classList.add('open'); },
-      hideSettingsModal: () => { DOM.settingsOverlay.classList.remove('open'); },
-      render: () => {
-        const query = DOM.searchInput.value.trim();
-        const filtered = query ? bookmarks.search(query) : appState.bookmarks;
-        DOM.bmGrid.innerHTML = '';
-        filtered.forEach((bm, visIndex) => {
-          const actualIndex = appState.bookmarks.indexOf(bm);
-          const el = document.createElement('a');
-          el.className = `bookmark plane-${bm.plane || 'concorde'}${appState.isEditMode ? ' edit-mode' : ''}`;
-          el.href = appState.isEditMode ? 'javascript:void(0)' : utils.normalizeUrl(bm.url);
-          el.target = appState.isEditMode ? '' : '_blank';
-          el.rel = 'noopener noreferrer';
-          let html = `<div class="bm-label">${escapeHtml(bm.name)}</div>`;
-          if (appState.isEditMode) {
-            html += `<button class="tile-action tile-edit" data-index="${actualIndex}" title="Edit">✏️</button><button class="tile-action tile-delete" data-index="${actualIndex}" title="Delete">✕</button>`;
-          }
-          el.innerHTML = html;
-          el.addEventListener('click', (e) => { if (appState.isEditMode) e.preventDefault(); });
-          DOM.bmGrid.appendChild(el);
+      hideBookmarkModal: () => DOM.bookmarkOverlay.classList.remove('open'),
+      showSettings: () => {
+        DOM.settingsName.value = state.settings.displayName || '';
+        cfg.applyTheme(state.settings.theme);
+        DOM.settingsOverlay.classList.add('open');
+        DOM.settingsName.focus();
+      },
+      hideSettings: () => DOM.settingsOverlay.classList.remove('open'),
+
+      /* Build a plane <img> or fallback inline SVG */
+      planeImg: (plane) => {
+        const key = (plane || DEFAULT_PLANE);
+        const src = PLANE_IMGS[key] || PLANE_IMGS[DEFAULT_PLANE];
+        const label = PLANE_LABELS[key] || 'Aircraft';
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = label + ' silhouette';
+        img.className = 'bm-plane-img';
+        img.width = 60; img.height = 60;
+        img.setAttribute('aria-hidden', 'true');
+        /* graceful fallback: if image fails, show emoji */
+        img.addEventListener('error', () => {
+          const span = document.createElement('span');
+          span.textContent = '✈️';
+          span.style.cssText = 'font-size:2.4rem;line-height:1;';
+          span.setAttribute('aria-hidden','true');
+          img.replaceWith(span);
         });
-        if (!query) {
+        return img;
+      },
+
+      render: () => {
+        const q        = DOM.searchInput.value.trim();
+        const filtered = bm.filter(q);
+        DOM.bmGrid.innerHTML = '';
+        filtered.forEach((b) => {
+          const actualIdx = state.bookmarks.indexOf(b);
+          const a = document.createElement('a');
+          a.className = `bookmark plane-${b.plane || DEFAULT_PLANE}${state.isEditMode ? ' edit-mode' : ''}`;
+          a.href      = state.isEditMode ? '#' : utils.normalizeUrl(b.url);
+          if (!state.isEditMode) { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
+          a.setAttribute('role','listitem');
+          a.setAttribute('aria-label', b.name + ' (' + (PLANE_LABELS[b.plane] || 'Aircraft') + ')');
+          a.tabIndex = 0;
+
+          a.appendChild(ui.planeImg(b.plane));
+
+          const lbl = document.createElement('div');
+          lbl.className = 'bm-label';
+          lbl.textContent = b.name;
+          a.appendChild(lbl);
+
+          if (state.isEditMode) {
+            const editBtn = document.createElement('button');
+            editBtn.className = 'tile-action tile-edit';
+            editBtn.dataset.index = actualIdx;
+            editBtn.title = 'Edit';
+            editBtn.setAttribute('aria-label', 'Edit ' + b.name);
+            editBtn.textContent = '✏';
+            const delBtn  = document.createElement('button');
+            delBtn.className  = 'tile-action tile-delete';
+            delBtn.dataset.index = actualIdx;
+            delBtn.title = 'Delete';
+            delBtn.setAttribute('aria-label', 'Delete ' + b.name);
+            delBtn.textContent = '✕';
+            a.appendChild(editBtn);
+            a.appendChild(delBtn);
+          }
+          a.addEventListener('click', (e) => { if (state.isEditMode) e.preventDefault(); });
+          DOM.bmGrid.appendChild(a);
+        });
+
+        /* Add button */
+        if (!q) {
           const addBtn = document.createElement('button');
           addBtn.className = 'add-tile';
+          addBtn.setAttribute('type','button');
+          addBtn.setAttribute('aria-label','Add new bookmark');
+          addBtn.setAttribute('role','listitem');
           addBtn.innerHTML = '<span>Add Bookmark</span>';
           addBtn.addEventListener('click', () => ui.showBookmarkModal());
           DOM.bmGrid.appendChild(addBtn);
         }
       },
+
       toggleEditMode: () => {
-        appState.isEditMode = !appState.isEditMode;
-        DOM.toggleEdit.classList.toggle('active');
-        DOM.toggleEdit.textContent = appState.isEditMode ? '✓ Done' : 'Edit';
+        state.isEditMode = !state.isEditMode;
+        DOM.toggleEdit.classList.toggle('active', state.isEditMode);
+        DOM.toggleEdit.textContent = state.isEditMode ? '✓ Done' : 'Edit';
         ui.render();
       }
     };
 
-    function escapeHtml(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
-    function clearBookmarkError() { DOM.bookmarkError.classList.add('hidden'); DOM.bookmarkError.textContent = ''; }
-    function showBookmarkError(msg) { DOM.bookmarkError.textContent = msg; DOM.bookmarkError.classList.remove('hidden'); }
-    function clearRegisterError() { DOM.registerError.classList.add('hidden'); DOM.registerError.textContent = ''; DOM.registerSuccess.classList.add('hidden'); DOM.registerSuccess.textContent = ''; }
-    function showRegisterError(msg) { clearRegisterError(); DOM.registerError.textContent = msg; DOM.registerError.classList.remove('hidden'); }
-    function showRegisterSuccess(msg) { clearRegisterError(); DOM.registerSuccess.textContent = msg; DOM.registerSuccess.classList.remove('hidden'); }
-    function showLoginError(msg) { DOM.loginError.textContent = msg; DOM.loginError.classList.remove('hidden'); }
-    function updateThemeButtons() { DOM.themeDark.classList.toggle('active', appState.settings.theme === 'dark'); DOM.themeLight.classList.toggle('active', appState.settings.theme === 'light'); }
-
+    /* ── Init ── */
     function init() {
-      settings.load();
-      settings.applyTheme(appState.settings.theme);
-      const user = auth.getCurrentUser();
+      cfg.load();
+      cfg.applyTheme(state.settings.theme);
+
+      const user = auth.getSession();
       if (user) {
-        appState.currentUser = user;
-        appState.authToken = utils.lsGet(STORAGE_KEYS.AUTH_TOKEN);
-        bookmarks.load();
-        ui.hideAuthOverlay();
+        state.currentUser = user;
+        bm.load();
+        ui.hideAuth();
         ui.render();
-        DOM.settingsName.value = appState.settings.displayName || '';
       } else {
-        ui.showAuthOverlay();
+        ui.showAuth();
       }
 
-      DOM.authTabs.forEach(tab => {
+      /* Auth tabs */
+      document.querySelectorAll('.auth-tab').forEach(tab => {
         tab.addEventListener('click', () => {
-          const tabName = tab.dataset.tab;
-          DOM.authTabs.forEach(t => t.classList.remove('active'));
-          DOM.authContents.forEach(c => c.classList.remove('active'));
+          const name = tab.dataset.tab;
+          document.querySelectorAll('.auth-tab').forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected','false'); });
+          document.querySelectorAll('.auth-content').forEach(c => c.classList.remove('active'));
           tab.classList.add('active');
-          document.getElementById(`${tabName}-content`).classList.add('active');
+          tab.setAttribute('aria-selected','true');
+          $(`${name}-content`).classList.add('active');
         });
       });
-      DOM.switchToRegister.addEventListener('click', () => DOM.authTabs[1].click());
-      DOM.switchToLogin.addEventListener('click', () => DOM.authTabs[0].click());
-      DOM.loginBtn.addEventListener('click', async () => {
+      DOM.switchToRegister.addEventListener('click', () => $('tab-register').click());
+      DOM.switchToLogin.addEventListener('click',    () => $('tab-login').click());
+
+      /* Login */
+      const doLogin = async () => {
         const username = DOM.loginUsername.value.trim();
         const password = DOM.loginPassword.value;
+        DOM.loginError.classList.add('hidden');
         try {
-          const user = await auth.login(username, password);
-          appState.currentUser = user;
-          appState.authToken = utils.lsGet(STORAGE_KEYS.AUTH_TOKEN);
-          bookmarks.load();
-          settings.load();
-          ui.hideAuthOverlay();
+          state.currentUser = await auth.login(username, password);
+          bm.load(); cfg.load();
+          ui.hideAuth();
           ui.render();
-        } catch(err) { showLoginError(err.message); }
-      });
-      DOM.loginPassword.addEventListener('keydown', (e) => { if (e.key === 'Enter') DOM.loginBtn.click(); });
-      DOM.registerBtn.addEventListener('click', async () => {
+        } catch(err) { DOM.loginError.textContent = err.message; DOM.loginError.classList.remove('hidden'); }
+      };
+      DOM.loginBtn.addEventListener('click', doLogin);
+      DOM.loginPassword.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+      DOM.loginUsername.addEventListener('keydown', (e) => { if (e.key === 'Enter') DOM.loginPassword.focus(); });
+
+      /* Register */
+      const doRegister = async () => {
         const username = DOM.registerUsername.value.trim();
         const password = DOM.registerPassword.value;
-        const confirm = DOM.registerConfirm.value;
-        clearRegisterError();
-        if (password !== confirm) { showRegisterError('Passwords do not match'); return; }
+        const confirm  = DOM.registerConfirm.value;
+        DOM.registerError.classList.add('hidden'); DOM.registerSuccess.classList.add('hidden');
+        if (password !== confirm) { DOM.registerError.textContent = 'Passwords do not match'; DOM.registerError.classList.remove('hidden'); return; }
         try {
           await auth.register(username, password);
-          showRegisterSuccess('Account created! You can now login.');
-          setTimeout(() => { DOM.switchToLogin.click(); DOM.loginUsername.value = username; DOM.loginPassword.focus(); }, 1500);
-        } catch(err) { showRegisterError(err.message); }
-      });
-      DOM.registerConfirm.addEventListener('keydown', (e) => { if (e.key === 'Enter') DOM.registerBtn.click(); });
+          DOM.registerSuccess.textContent = 'Account created! You can now login.';
+          DOM.registerSuccess.classList.remove('hidden');
+          setTimeout(() => { $('tab-login').click(); DOM.loginUsername.value = username; DOM.loginPassword.focus(); }, 1500);
+        } catch(err) { DOM.registerError.textContent = err.message; DOM.registerError.classList.remove('hidden'); }
+      };
+      DOM.registerBtn.addEventListener('click', doRegister);
+      DOM.registerConfirm.addEventListener('keydown', (e) => { if (e.key === 'Enter') doRegister(); });
+
+      /* Header controls */
       DOM.toggleEdit.addEventListener('click', ui.toggleEditMode);
-      DOM.toggleTheme.addEventListener('click', () => { const newTheme = appState.settings.theme === 'dark' ? 'light' : 'dark'; settings.applyTheme(newTheme); });
-      DOM.openSettings.addEventListener('click', ui.showSettingsModal);
+      DOM.toggleTheme.addEventListener('click', () => cfg.applyTheme(state.settings.theme === 'dark' ? 'light' : 'dark'));
+      DOM.openSettings.addEventListener('click', ui.showSettings);
       DOM.logoutBtn.addEventListener('click', () => { if (confirm('Logout?')) auth.logout(); });
+
+      /* Bookmark filter */
       DOM.searchInput.addEventListener('input', () => ui.render());
+
+      /* Bookmark modal */
       DOM.bookmarkClose.addEventListener('click', ui.hideBookmarkModal);
       DOM.bookmarkCancel.addEventListener('click', ui.hideBookmarkModal);
       DOM.bookmarkSave.addEventListener('click', () => {
-        const name = DOM.bookmarkName.value.trim();
-        const url = DOM.bookmarkUrl.value.trim();
+        const name  = DOM.bookmarkName.value.trim();
+        const url   = DOM.bookmarkUrl.value.trim();
         const plane = DOM.bookmarkPlane.value;
+        DOM.bookmarkError.classList.add('hidden');
         try {
-          clearBookmarkError();
           if (!name) throw new Error('Name is required');
-          if (!url) throw new Error('URL is required');
-          if (appState.editingIndex >= 0) {
-            bookmarks.update(appState.editingIndex, name, url, plane);
-          } else {
-            bookmarks.add(name, url, plane);
-          }
+          if (!url)  throw new Error('URL is required');
+          if (state.editingIndex >= 0) bm.update(state.editingIndex, name, url, plane);
+          else                          bm.add(name, url, plane);
           ui.hideBookmarkModal();
-        } catch(err) { showBookmarkError(err.message); }
+        } catch(err) { DOM.bookmarkError.textContent = err.message; DOM.bookmarkError.classList.remove('hidden'); }
       });
-      DOM.settingsClose.addEventListener('click', ui.hideSettingsModal);
-      DOM.saveSettings.addEventListener('click', () => { appState.settings.displayName = DOM.settingsName.value.trim() || 'Pilot'; settings.save(); ui.hideSettingsModal(); });
-      DOM.clearAllData.addEventListener('click', () => { if (confirm('This will delete ALL your data. Are you sure?')) { utils.lsRemove(`${STORAGE_KEYS.USER}_${appState.currentUser.username}`); auth.logout(); } });
-      DOM.themeDark.addEventListener('click', () => settings.applyTheme('dark'));
-      DOM.themeLight.addEventListener('click', () => settings.applyTheme('light'));
-      document.addEventListener('click', (e) => {
-        if (e.target.classList.contains('tile-edit')) { const index = parseInt(e.target.dataset.index); ui.showBookmarkModal(index); }
-        if (e.target.classList.contains('tile-delete')) { const index = parseInt(e.target.dataset.index); if (confirm('Delete this bookmark?')) { bookmarks.delete(index); } }
+      DOM.bookmarkName.addEventListener('keydown', (e) => { if (e.key === 'Enter') DOM.bookmarkSave.click(); });
+
+      /* Delegate edit/delete tile buttons */
+      DOM.bmGrid.addEventListener('click', (e) => {
+        const editBtn = e.target.closest('.tile-edit');
+        const delBtn  = e.target.closest('.tile-delete');
+        if (editBtn) { ui.showBookmarkModal(parseInt(editBtn.dataset.index)); }
+        if (delBtn)  { if (confirm('Delete this bookmark?')) bm.delete(parseInt(delBtn.dataset.index)); }
       });
+
+      /* Settings modal */
+      DOM.settingsClose.addEventListener('click', ui.hideSettings);
+      DOM.saveSettings.addEventListener('click', () => {
+        state.settings.displayName = DOM.settingsName.value.trim() || 'Pilot';
+        cfg.save(); ui.hideSettings();
+      });
+      DOM.clearAllData.addEventListener('click', () => {
+        if (confirm('This will delete ALL your data. Are you sure?')) {
+          utils.lsRemove(`${SK.USER}_${state.currentUser.username}`);
+          auth.logout();
+        }
+      });
+      DOM.themeDark.addEventListener('click',  () => cfg.applyTheme('dark'));
+      DOM.themeLight.addEventListener('click', () => cfg.applyTheme('light'));
+
+      /* Sidebar */
+      DOM.openSidebar.addEventListener('click', sidebar.toggle);
+      DOM.sidebarClose.addEventListener('click', sidebar.close);
+      DOM.sidebarOverlay.addEventListener('click', sidebar.close);
+
+      /* Google search form */
+      DOM.sidebarForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        hist.search(DOM.sidebarInput.value);
+        DOM.sidebarInput.value = '';
+      });
+
+      /* History toggle */
+      DOM.historyToggle.addEventListener('click', () => {
+        const open = DOM.historyPanel.classList.toggle('open');
+        DOM.historyToggle.classList.toggle('open', open);
+        DOM.historyToggle.setAttribute('aria-expanded', String(open));
+        if (open) hist.renderList();
+      });
+      DOM.clearHistory.addEventListener('click', hist.clear);
+
+      /* Escape key: close topmost open layer */
+      document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        if (DOM.bookmarkOverlay.classList.contains('open'))  { ui.hideBookmarkModal(); return; }
+        if (DOM.settingsOverlay.classList.contains('open'))  { ui.hideSettings(); return; }
+        if (state.sidebarOpen) { sidebar.close(); return; }
+      });
+
+      /* Overlay backdrop clicks close modals */
+      DOM.bookmarkOverlay.addEventListener('click', (e) => { if (e.target === DOM.bookmarkOverlay) ui.hideBookmarkModal(); });
+      DOM.settingsOverlay.addEventListener('click', (e) => { if (e.target === DOM.settingsOverlay) ui.hideSettings(); });
     }
 
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', init);
-    } else {
-      init();
-    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
   </script>
-
 </body>
 </html>

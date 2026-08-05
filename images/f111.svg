@@ -1,0 +1,12 @@
+<!-- F-111 Aardvark top-down silhouette. Original artwork, released under CC0. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
+  <!-- Fuselage -->
+  <ellipse cx="50" cy="50" rx="5" ry="44"/>
+  <!-- Variable-sweep wings (swept back) -->
+  <polygon points="50,35 15,70 50,65 85,70"/>
+  <!-- Horizontal stabilisers -->
+  <polygon points="50,88 30,100 50,95 70,100"/>
+  <!-- Engine intakes (small rectangles on sides of fuselage forward) -->
+  <rect x="40" y="30" width="5" height="10" rx="1"/>
+  <rect x="55" y="30" width="5" height="10" rx="1"/>
+</svg>

@@ -1,0 +1,16 @@
+<!-- Boeing 747 top-down silhouette. Original artwork, released under CC0. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
+  <!-- Fuselage (wide body with hump implied by slight wider centre) -->
+  <ellipse cx="50" cy="50" rx="6" ry="42"/>
+  <!-- Upper-deck hump -->
+  <ellipse cx="50" cy="34" rx="4" ry="10"/>
+  <!-- Main swept wings -->
+  <polygon points="50,42 5,65 50,60 95,65"/>
+  <!-- Engine pods (4) on wings -->
+  <ellipse cx="22" cy="59" rx="4" ry="2"/>
+  <ellipse cx="36" cy="55" rx="4" ry="2"/>
+  <ellipse cx="64" cy="55" rx="4" ry="2"/>
+  <ellipse cx="78" cy="59" rx="4" ry="2"/>
+  <!-- Horizontal stabilisers -->
+  <polygon points="50,86 28,96 50,92 72,96"/>
+</svg>

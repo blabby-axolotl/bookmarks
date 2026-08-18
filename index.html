@@ -6,7 +6,7 @@
   <link rel="icon" type="image/x-icon" href="images/favicon.png">
   <title>Avgeek Bookmarks</title>
   <!--
-    PROTOTYPE NOTICE: Authentication uses localStorage only.
+    PROTOTYPE NOTICE: Authentication uses localStorage with optional Apps Script cloud sync.
     Passwords are stored with btoa() encoding — NOT cryptographic hashing.
     This prototype must NOT be deployed with real user credentials.
     Replace auth.register / auth.login with a real backend before production use.
@@ -547,6 +547,10 @@
     }
     .settings-label { font-size: .88rem; font-weight: 500; }
     .settings-control { display: flex; gap: 8px; }
+    .settings-group.stacked { display: block; }
+    .settings-stack { margin-top: 10px; display: grid; gap: 10px; }
+    .settings-help { margin: 8px 0 0; font-size: .78rem; color: var(--muted); line-height: 1.45; }
+    .status-message { margin-top: 8px; margin-bottom: 0; text-align: left; }
     .theme-toggle {
       width: 20px; height: 20px; border-radius: 50%;
       border: 2px solid var(--accent-primary); cursor: pointer;
@@ -768,6 +772,16 @@
         <input class="form-field" id="settings-name" type="text" placeholder="Your name" maxlength="40" style="width:auto;flex:1;margin-bottom:0;">
       </div>
 
+      <div class="settings-group stacked">
+        <label class="settings-label" for="cloud-script-url">Google Apps Script URL</label>
+        <div class="settings-stack">
+          <input class="form-field" id="cloud-script-url" type="url" placeholder="Paste your deployed Apps Script web app URL" aria-label="Google Apps Script URL">
+          <button class="btn btn-secondary" id="sync-cloud-btn" type="button">Sync Cloud Now</button>
+        </div>
+        <p class="settings-help">Leave this blank to keep using local-only storage. Once your Apps Script web app is deployed, paste its URL here to sync accounts and bookmarks with Google Sheets.</p>
+        <div id="cloud-status" class="form-success hidden status-message" role="status" aria-live="polite"></div>
+      </div>
+
       <div style="height:12px"></div>
       <button class="btn" id="save-settings">Save Settings</button>
       <button class="btn btn-danger" id="clear-all-data">Clear All My Data</button>
@@ -781,8 +795,8 @@
   <script>
     /*
      * ════════════════════════════════════════════════════════
-     * PROTOTYPE / LOCAL-ONLY BUILD
-     * Authentication uses localStorage exclusively.
+     * PROTOTYPE / CLIENT-SIDE BUILD
+     * Authentication uses localStorage with optional Apps Script sync.
      * Passwords are encoded with btoa() — NOT cryptographically
      * hashed. Do NOT use real credentials with this prototype.
      * Replace auth.register / auth.login with a proper backend
@@ -840,10 +854,12 @@
       { name:'Reddit',   url:'https://reddit.com',          plane:'777'      }
     ];
 
+    const DEFAULT_SETTINGS = { theme:'dark', displayName:'Pilot', cloudScriptUrl:'' };
+
     let state = {
       currentUser: null,
       bookmarks:   [],
-      settings:    { theme:'dark', displayName:'Pilot' },
+      settings:    { ...DEFAULT_SETTINGS },
       editingIndex:-1,
       isEditMode:  false,
       sidebarOpen: false
@@ -885,6 +901,9 @@
       settingsOverlay:  $('settings-overlay'),
       settingsClose:    $('settings-close'),
       settingsName:     $('settings-name'),
+      cloudScriptUrl:   $('cloud-script-url'),
+      syncCloudBtn:     $('sync-cloud-btn'),
+      cloudStatus:      $('cloud-status'),
       themeDark:        $('theme-dark'),
       themeLight:       $('theme-light'),
       saveSettings:     $('save-settings'),
@@ -903,10 +922,30 @@
 
     /* ── Auth (PROTOTYPE – localStorage only) ── */
     const auth = {
+      cacheUser: (user) => {
+        if (!user || !user.username) return null;
+        const normalized = {
+          username: user.username,
+          password: user.password,
+          createdAt: user.createdAt || new Date().toISOString(),
+          bookmarks: Array.isArray(user.bookmarks) ? user.bookmarks : JSON.parse(JSON.stringify(DEFAULT_BOOKMARKS))
+        };
+        utils.lsSet(`${SK.USER}_${normalized.username}`, JSON.stringify(normalized));
+        return normalized;
+      },
+      loadLocalUser: (username) => {
+        const raw = utils.lsGet(`${SK.USER}_${username}`);
+        if (!raw) return null;
+        try { return JSON.parse(raw); } catch(e) { return null; }
+      },
       register: async (username, password) => {
         if (!username || username.length < 3) throw new Error('Username must be at least 3 characters');
         if (!password || password.length < 6) throw new Error('Password must be at least 6 characters');
-        if (utils.lsGet(`${SK.USER}_${username}`)) throw new Error('Username already exists');
+        if (auth.loadLocalUser(username)) throw new Error('Username already exists');
+        if (cloud.isEnabled()) {
+          const remoteUser = await cloud.fetchUser(username, true);
+          if (remoteUser) throw new Error('Username already exists');
+        }
         const userData = {
           username,
           // NOTE: btoa is NOT secure hashing — prototype only
@@ -914,14 +953,22 @@
           createdAt: new Date().toISOString(),
           bookmarks: JSON.parse(JSON.stringify(DEFAULT_BOOKMARKS))
         };
-        utils.lsSet(`${SK.USER}_${username}`, JSON.stringify(userData));
+        auth.cacheUser(userData);
+        await cloud.syncUser(userData, true);
         return userData;
       },
       login: async (username, password) => {
-        const raw = utils.lsGet(`${SK.USER}_${username}`);
-        if (!raw) throw new Error('Username not found');
-        const user = JSON.parse(raw);
+        let user = auth.loadLocalUser(username);
+        if (cloud.isEnabled()) {
+          const remoteUser = await cloud.fetchUser(username, true);
+          if (remoteUser) {
+            user = remoteUser;
+            auth.cacheUser(remoteUser);
+          }
+        }
+        if (!user) throw new Error('Username not found');
         if (user.password !== btoa(password)) throw new Error('Invalid password');
+        auth.cacheUser(user);
         utils.lsSet(SK.AUTH_TOK, btoa(`${username}:${Date.now()}`));
         return user;
       },
@@ -931,16 +978,116 @@
         state.bookmarks   = [];
         state.isEditMode  = false;
         sidebar.close();
+        cloud.clearStatus();
         ui.showAuth();
       },
-      getSession: () => {
+      getSession: async () => {
         const tok = utils.lsGet(SK.AUTH_TOK);
         if (!tok) return null;
         try {
           const username = atob(tok).split(':')[0];
-          const raw = utils.lsGet(`${SK.USER}_${username}`);
-          return raw ? JSON.parse(raw) : null;
+          const localUser = auth.loadLocalUser(username);
+          if (localUser) return localUser;
+          if (!cloud.isEnabled()) return null;
+          const remoteUser = await cloud.fetchUser(username, true);
+          if (remoteUser) return auth.cacheUser(remoteUser);
+          return null;
         } catch(e) { return null; }
+      }
+    };
+
+    /* ── Google Apps Script cloud sync ── */
+    const cloud = {
+      statusClass: 'form-success',
+      getUrl: () => (state.settings.cloudScriptUrl || '').trim(),
+      isEnabled: () => !!cloud.getUrl(),
+      clearStatus: () => {
+        DOM.cloudStatus.textContent = '';
+        DOM.cloudStatus.classList.add('hidden');
+        DOM.cloudStatus.classList.remove('form-error', 'form-success');
+        DOM.cloudStatus.classList.add(cloud.statusClass);
+      },
+      setStatus: (message, type = 'success') => {
+        cloud.statusClass = type === 'error' ? 'form-error' : 'form-success';
+        DOM.cloudStatus.textContent = message;
+        DOM.cloudStatus.classList.remove('hidden', 'form-error', 'form-success');
+        DOM.cloudStatus.classList.add(cloud.statusClass);
+      },
+      request: async (method, params = {}) => {
+        const url = cloud.getUrl();
+        if (!url) throw new Error('Add your Apps Script URL in Settings first');
+        let response;
+        if (method === 'GET') {
+          const target = new URL(url);
+          Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && value !== '') target.searchParams.set(key, value);
+          });
+          response = await fetch(target.toString(), { method: 'GET' });
+        } else {
+          const body = new URLSearchParams({ payload: JSON.stringify(params) });
+          response = await fetch(url, { method: 'POST', body });
+        }
+        if (!response.ok) throw new Error(`Cloud request failed (${response.status})`);
+        const data = await response.json();
+        if (!data.ok) throw new Error(data.error || 'Cloud sync failed');
+        return data;
+      },
+      fetchUser: async (username, silent = false) => {
+        if (!cloud.isEnabled()) return null;
+        try {
+          const data = await cloud.request('GET', { action: 'getUser', username });
+          if (data.user) {
+            data.user.bookmarks = Array.isArray(data.user.bookmarks) ? data.user.bookmarks : [];
+          }
+          return data.user || null;
+        } catch (err) {
+          if (!silent) cloud.setStatus(err.message, 'error');
+          return null;
+        }
+      },
+      syncUser: async (user, silent = false) => {
+        if (!cloud.isEnabled() || !user || !user.username) return null;
+        try {
+          const payload = {
+            action: 'upsertUser',
+            user: {
+              username: user.username,
+              password: user.password,
+              createdAt: user.createdAt || new Date().toISOString(),
+              bookmarks: Array.isArray(user.bookmarks) ? user.bookmarks : []
+            }
+          };
+          const data = await cloud.request('POST', payload);
+          if (!silent) cloud.setStatus(data.message || 'Cloud sync complete');
+          return data;
+        } catch (err) {
+          if (!silent) cloud.setStatus(err.message, 'error');
+          return null;
+        }
+      },
+      syncCurrentUser: async (silent = false) => {
+        if (!state.currentUser) throw new Error('Login before syncing cloud data');
+        const user = auth.loadLocalUser(state.currentUser.username) || {
+          username: state.currentUser.username,
+          password: state.currentUser.password,
+          createdAt: state.currentUser.createdAt,
+          bookmarks: state.bookmarks
+        };
+        user.bookmarks = [...state.bookmarks];
+        auth.cacheUser(user);
+        state.currentUser = user;
+        return cloud.syncUser(user, silent);
+      },
+      deleteCurrentUser: async () => {
+        if (!cloud.isEnabled() || !state.currentUser) return null;
+        try {
+          const data = await cloud.request('POST', { action: 'deleteUser', username: state.currentUser.username });
+          cloud.setStatus(data.message || 'Cloud account deleted');
+          return data;
+        } catch (err) {
+          cloud.setStatus(err.message, 'error');
+          return null;
+        }
       }
     };
 
@@ -953,11 +1100,12 @@
       },
       save: () => {
         if (!state.currentUser) return;
-        const raw = utils.lsGet(`${SK.USER}_${state.currentUser.username}`);
-        if (!raw) return;
-        const user = JSON.parse(raw);
+        const user = auth.loadLocalUser(state.currentUser.username);
+        if (!user) return;
         user.bookmarks = state.bookmarks;
-        utils.lsSet(`${SK.USER}_${state.currentUser.username}`, JSON.stringify(user));
+        auth.cacheUser(user);
+        state.currentUser = user;
+        if (cloud.isEnabled()) cloud.syncCurrentUser(true);
       },
       add: (name, url, plane) => {
         url = utils.normalizeUrl(url);
@@ -987,7 +1135,11 @@
     const cfg = {
       load: () => {
         const raw = utils.lsGet(SK.SETTINGS);
-        if (raw) try { state.settings = JSON.parse(raw); } catch(e) {}
+        state.settings = { ...DEFAULT_SETTINGS };
+        if (raw) {
+          try { state.settings = { ...DEFAULT_SETTINGS, ...JSON.parse(raw) }; }
+          catch(e) { state.settings = { ...DEFAULT_SETTINGS }; }
+        }
       },
       save: () => utils.lsSet(SK.SETTINGS, JSON.stringify(state.settings)),
       applyTheme: (theme) => {
@@ -1097,6 +1249,8 @@
       hideBookmarkModal: () => DOM.bookmarkOverlay.classList.remove('open'),
       showSettings: () => {
         DOM.settingsName.value = state.settings.displayName || '';
+        DOM.cloudScriptUrl.value = state.settings.cloudScriptUrl || '';
+        cloud.clearStatus();
         cfg.applyTheme(state.settings.theme);
         DOM.settingsOverlay.classList.add('open');
         DOM.settingsName.focus();
@@ -1188,11 +1342,11 @@
     };
 
     /* ── Init ── */
-    function init() {
+    async function init() {
       cfg.load();
       cfg.applyTheme(state.settings.theme);
 
-      const user = auth.getSession();
+      const user = await auth.getSession();
       if (user) {
         state.currentUser = user;
         bm.load();
@@ -1286,12 +1440,26 @@
 
       /* Settings modal */
       DOM.settingsClose.addEventListener('click', ui.hideSettings);
-      DOM.saveSettings.addEventListener('click', () => {
+      DOM.saveSettings.addEventListener('click', async () => {
         state.settings.displayName = DOM.settingsName.value.trim() || 'Pilot';
-        cfg.save(); ui.hideSettings();
+        state.settings.cloudScriptUrl = DOM.cloudScriptUrl.value.trim();
+        cfg.save();
+        if (state.currentUser && cloud.isEnabled()) await cloud.syncCurrentUser(false);
+        else cloud.setStatus(state.settings.cloudScriptUrl ? 'Cloud URL saved' : 'Cloud sync disabled');
+        ui.hideSettings();
       });
-      DOM.clearAllData.addEventListener('click', () => {
+      DOM.syncCloudBtn.addEventListener('click', async () => {
+        if (!state.currentUser) {
+          cloud.setStatus('Login before syncing cloud data', 'error');
+          return;
+        }
+        state.settings.cloudScriptUrl = DOM.cloudScriptUrl.value.trim();
+        cfg.save();
+        await cloud.syncCurrentUser(false);
+      });
+      DOM.clearAllData.addEventListener('click', async () => {
         if (confirm('This will delete ALL your data. Are you sure?')) {
+          await cloud.deleteCurrentUser();
           utils.lsRemove(`${SK.USER}_${state.currentUser.username}`);
           auth.logout();
         }
